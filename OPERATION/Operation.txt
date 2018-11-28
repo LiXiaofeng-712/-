@@ -1,0 +1,763 @@
+Nginx
+
+Day01
+
+常见的web服务
+Linux和Unix:Apache,Nginx,Tengine,Lighttpd,Tomcat,IBM WebSphere,Jboss
+Windowns:IIS
+
+Nginx并发量高:可以同时支持上万人同时访问
+网页中F12-->网络中显示
+响应头(服务端给客户端的回复):server会显示服务器类型
+请求头:客户端发起的
+官网:http://nginx.org
+
+源码装思路:
+1)安装依赖	Nginx依赖包:gcc,pcre-devel,openssl-devel
+2)tar -xf  
+3)./configure  --prefix=指定路径  --with-http_ssl_module:提供ssl加密功能(模块)
+	--user=指定用户  --group=指定组   指定了用户和组以后启动Nginx会默认为此用户和组
+4)make
+5)make install
+
+
+安全:(权限)  针对用户
+	程序的权限依赖于启动该程序的用户
+	所以需创建普通用户启动一些程序
+
+Nginx文件:
+  nginx path prefix: "/usr/local/nginx"
+  nginx binary file: "/usr/local/nginx/sbin/nginx"
+  nginx configuration prefix: "/usr/local/nginx/conf"
+  nginx configuration file: "/usr/local/nginx/conf/nginx.conf"
+  nginx pid file: "/usr/local/nginx/logs/nginx.pid"
+  nginx error log file: "/usr/local/nginx/logs/error.log"
+  nginx http access log file: "/usr/local/nginx/logs/access.log"
+  nginx http client request body temporary files: "client_body_temp"
+  nginx http proxy temporary files: "proxy_temp"
+  nginx http fastcgi temporary files: "fastcgi_temp"
+  nginx http uwsgi temporary files: "uwsgi_temp"
+  nginx http scgi temporary files: "scgi_temp"
+
+Nginx服务命令
+  /usr/local/nginx/sbin/nginx                    //启动服务
+  /usr/local/nginx/sbin/nginx -s stop            //关闭服务
+  /usr/local/nginx/sbin/nginx -s reload        //重新加载配置文件
+  /usr/local/nginx/sbin/nginx –V                //查看软件信息
+  ln -s /usr/local/nginx/sbin/nginx /sbin/        //方便后期使用
+
+netstat命令可以查看系统中启动的端口信息，该命令常用选项如下：
+-a显示所有端口的信息
+-n以数字格式显示端口号
+-t显示TCP连接的端口
+-u显示UDP连接的端口
+-l显示服务正在监听的端口信息，如httpd启动后，会一直监听80端口
+-p显示监听端口的服务名称是什么（也就是程序名称）
+
+curl:字符界面的浏览器
+
+安装Nginx服务思路
+总结:1.源码装包
+     2.起服务
+     3.设置防火墙和SELinux
+     4.访问测试
+#########################################################################
+
+一、升级Nginx程序
+原nginx中的文件不需变动:
+	/usr/local/nginx/conf	配置文件
+	/usr/local/nginx/html	页面内容
+	/usr/local/nginx/logs	日志文件
+修改/usr/local/nginx/sbin/nginx即可
+步骤:
+1.解压新版本tar包
+2../configure ...  生成objs目录
+3.make		生成objs/nginx
+4.将新版本nginx复制到/usr/local/nginx/sbin/下(提前备份老版本,改名)
+5.killall nginx 杀掉老程序,重新启动新程序,完成升级!
+  ==>make upgrade(与上述效果相同)
+
+配置文件/usr/local/nginx/conf/nginx.conf
+  worker_connections  1024;   同时访问数量默认1024
+文件格式
+  server{
+  	listen 端口;
+	server_name 域名;
+	root html根目录(相对路径);
+	index  index.html(默认首页);   
+  }
+
+二、用户认证
+1.修改配置文件
+  添加: auth_basic 英文提示信息
+	auth_basic_user_file /usr/local/nginx/pass(认证密码文件)
+2.安装httpd-tools生成密码文件
+  htpasswd -c(创建,追加时不需加此选项) 配置文件路径 用户名
+  提示输入密码
+3.重新加载配置文件
+  nginx -s reload
+  报错:1.服务未启动	2.配置文件书写错误
+
+三、基于域名、端口、IP的虚拟主机
+类似与Apache,配置文件增加一项服务即可
+  server {
+   	listen 80;
+	server_name localhost;
+	location / {
+	  root html;
+	  index index.html;
+	}
+  }
+
+四、加密算法
+HTTP协议时明文(tcp/ip)
+HTTPS加密协议
+
+对称算法有：AES、DES，主要应用在单机数据加密。
+	加密发送时对方没有密码(一般用于本机电脑文件加密)
+非对称算法有：RSA、DSA，主要应用在网络数据加密。
+	公钥和私钥,加密和解密算法不同(一般用于网站加密)
+信息摘要：MD5、sha256，主要应用在数据完整性校验、数据秒传等。
+	md5sum 文件名
+ 	随机生成码随文件内容变化而变化
+
+五、配置SSL虚拟主机
+1.生成公钥私钥的文件需在/usr/local/nginx/conf下
+  生成私钥:openssl genrsa > 文件名
+  生成公钥:openssl req -new -x509 -key 文件名 > 公钥名
+	国家名(2个字母):cn
+	省份:
+	城市:
+	公司:
+	单位:
+	主机名:
+	邮箱地址:
+2.修改配置文件
+3.重起服务
+4.域名解析
+
+#######################################################################
+
+Day02
+
+静态网页和动态网页
+	静态网页：被访问的文件是静态的，不需要程序编译的
+	动态网页：需要专业的程序编译执行才可以访问，JAVA，PHP，PYTHON语言
+一、LNMP部署
+  NMP（Linux、Nginx、MySQL、PHP）
+  在RHEL7系统中，源码安装Nginx，使用RPM包安装MariaDB、PHP、PHP-FPM软件。
+  操作过程中需要安装的软件列表如下：
+	nginx
+	mariadb、mariadb-server、mariadb-devel
+	php、php-fpm、php-mysql
+  备注：mariadb（数据库客户端软件）、mariadb-server（数据库服务器软件）、
+	mariadb-devel（其他客户端软件的依赖包）、php（解释器）、
+	php-fpm（进程管理器服务）、php-mysql（PHP的数据库扩展包）。
+二、构建LNMP平台
+ 1. 动静分离
+	如果用户访问的是静态数据，则直接找到文件，返回
+	如果用户访问的是动态数据，则转发给解释器PHP
+   location 匹配用户地址栏(支持正则)
+	location / { ---------->/的优先级最低
+		root html;	
+	}
+    	location ~ \.php$ {
+		转发给解释器PHP
+	}
+  程序：在硬盘中的叫程序 QQ
+  进程：程序启动后会放入内存，内存里的就是进程（耗内存）
+	一个PHP进程大约25-30M
+  线程：在进程下起3个线程（消耗一个进程的内存，节省内存）
+	PHP端口号9000
+  2.修改配置文件，添加转发解释器
+  3.重起，访问
+  4.常见报错： nginx未启动			无法连接
+		php-fpm未启动		An Error
+		没有修改nginx.conf		未解释文件
+		test.php没有			404 not found
+		test.php语法错误		空白
+	Nginx的默认访问日志文件为/usr/local/nginx/logs/access.log
+	Nginx的默认错误日志文件为/usr/local/nginx/logs/error.log
+	PHP默认错误日志文件为/var/log/php-fpm/www-error.log
+	如果动态网站访问失败，可用参考错误日志，查找错误信息。
+三、地址重写
+  1.修改配置文件
+	rewrite 旧地址 新地址 [选项]
+	rewrite /a.html /b.html;(将a页面转化为b页面)
+ 	rewrite /a.html /b.html redirect;(地址转换为b地址)
+	rewrite ^/ http://www.tmooc.cn/;(所有本地地址跳转到tmooc)
+	rewrite ^/ 是从网络地址以后开始匹配转换地址的
+
+	#这里，~符号代表正则匹配，*符号代表不区分大小写
+	if ($http_user_agent ~* firefox) {         //识别客户端firefox浏览器
+	rewrite ^/(.*)$ /firefox/$1;
+	}
+
+	server {
+		listen 80;
+		server_name www.a.com;
+		rewrite ^/ www.baidu.com;  
+	}
+	server {
+		listen 80;
+		server_name www.b.com;
+		rewrite ^/ www.sina.com;
+	}
+  2.重起，验证
+	常见配置项：/usr/local/nginx/logs/access.log日志文件顺序
+	1.$remote_addr 与 $http_x_forwarded_for 用以记录客户端的ip地址；
+	2.$remote_user ：用来记录客户端用户名称；
+	3.$time_local ： 用来记录访问时间与时区；
+	4.$request ： 用来记录请求的url与http协议；
+	5.$status ： 用来记录请求状态；成功是200；
+	6.$body_bytes_s ent ：记录发送给客户端文件主体内容大小；
+	7.$http_referer ：用来记录从那个页面链接访问过来的；
+	8.$http_user_agent ：记录客户端浏览器的相关信息；
+  3.地址重写格式【总结】
+	rewrite 旧地址 新地址 [选项];
+	  常见选项:
+		last 不再读其他rewrite	一个{}中
+		break 不再读其他语句，结束请求	不同{}中
+		redirect 临时重定向
+		permament 永久重定向
+总结:
+一、部署LNMP
+	1.安装软件包
+	  Linux：系统
+	  Nginx：web服务器
+	  Mariadb：客户端软件
+	  Mariadb-server：数据库服务
+	  Mariadb-devel：依赖包
+	  Php：客户端解释器
+	  Php-fpm：Php服务器
+	  Php-mysql：连接数据库模块
+	2.起服务
+二、LNMP平台，动静分离
+	1.修改配置文件
+	location / {root html;}
+	location ~ \.php$ {
+		root html;
+		fastcgi_pass 127.0.0.1:9000;
+		include fastcgi.conf;	
+	}
+	2.重起，验证
+三、地址重写
+	1.配置文件
+	server {
+		root html;
+		server_name localhost;
+		rewrite /a.html /b.html;   #页面跳转到b.html
+		rewrite /a.html /b.html redirect; #网址直接临时跳转为b	
+	}
+	server {
+		root html;
+		server_name localhost;
+		#将所有页面跳转到百度下的此页面
+		rewrite ^/(.*) http://www.baidu.com/$1;
+	}
+	设置访问浏览器不同出现不同页面
+	location / {
+		#将匹配到的firefox浏览器页面转发
+		if ($http_user_agent ~* firefox){
+		rewrite ^/(.*) /firefox/$1;	
+	}
+	}
+	2.重起，验证
+	3.常见rewrite选项
+		last：不再读取下一个rewrite
+		break：直接退出，不再读取后续语句
+		redirect：临时重写地址
+		permament：永久重写地址
+
+
+####################################################################3
+Day03
+
+一、Nginx代理服务器(也叫调度器)
+  1.作用:负载均衡(海量请求分配给其他服务器处理),轮询方式
+	 自带健康检查(可以及时发现其他服务器是否坏机,将请求交给其他服务器处理)
+  2.搭建HTTP调度
+	1>部署后端web服务器
+	2>修改Nginx配置文件
+	#使用upstream定义后端服务器集群，集群名称任意(如webserver)
+	#使用server定义集群中的具体服务器和端口
+		upstream webserver {
+			server 192.168.2.100:80;
+			server 192.168.2.200:80;
+			...
+		}
+	#通过proxy_pass将用户请求转发给webserver集群
+	server {
+		location / {
+			proxy_pass http://webserver;
+		}
+	}
+	3>重起Nginx,客户端验证
+  3.配置upstream服务器集群池属性	
+	-weight设置服务器权重值，默认值为1
+	-max_fails设置最大失败次数
+	-fail_timeout设置失败超时时间，单位为秒
+	-down标记服务器已关机，不参与集群调度
+  4.配置upstream服务器群集的调度算法
+    #通过ip_hash设置调度规则为：相同客户端访问相同服务器
+     通过md5sum对客户端IP前几位地址生成十六进制数，取余后分配给后端服务器
+	ip_hash
+二、Nginx的TCP/UDP调度器（1.9版本之后才支持）
+  1.需要模块--with-stream开启4层
+  	stream {
+	  upstream 名称 {
+		server IP地址：端口；
+		...
+		}
+	  server {
+		listen 找个不用的端口；
+		proxy_pass 名称；	//转发给后端	
+		proxy_connect_timeout 1s; 	//连接超时时间
+		proxy_timeout 3s;		//发送数据超时时间	
+		}
+	}
+  2.改配置,起服务，验证
+三、Nginx优化处理
+  1.自定义返回给客户端的404错误页面（可以针对各种报错403...）
+  	修改配置文件error_page 404 /404.html
+		    charset utf-8(万国编码，否则会出现乱码)
+   	  常见http状态码
+	200		一切正常
+	301		网站被永久重定向
+	302		网站被临时重定向
+	401		用户名或密码错误
+	403		禁止访问（客户端IP地址被拒绝）
+	404		文件不存在
+	414		请求URI头部过长
+	500		服务器内部错误
+	502		Bad Geteway（集群错）
+  2.查看服务器状态信息(非常重要的功能)
+	1)安装模版--with-http_stub_status_module
+	2)修改配置文件
+		server {
+			location /访问页面跟的名称 {
+			  stub_status on;
+			  allow ip地址；	//允许访问的ip
+			  deny ip地址；	//拒绝访问的ip
+			}
+		}
+	Active connections：当前活动的连接数量。
+	Accepts：已经接受客户端的连接总数量。TCP
+	Handled：已经处理客户端的连接总数量。TCP
+	（一般与accepts一致，除非服务器限制了连接数量）。
+	Requests：客户端发送的请求数量。
+	Reading：当前服务器正在读取客户端请求头的数量。
+	Writing：当前服务器正在写响应信息的数量。
+	Waiting：当前多少客户端在等待服务器的响应。
+  3.优化Nginx并发量
+	1)测试：模拟 -n（总次数）-c（人数）网址
+		ab -n 2000 -c 2000 http://192.168.4.5/
+  	2)修改Nginx配置文件，增加并发量
+		worker_processes 1;	 	//与CPU核心数一致
+		worker_connections 65535;	//每个worker最大并发连接数	
+	3)优化Linux内核参数（最大文件数量 默认值1024）
+		 ulimit -a                  //查看所有属性值
+ 		 ulimit -Hn 100000          //设置硬限制（临时规则）
+ 		 ulimit -Sn 100000          //设置软限制（临时规则）
+     	4)永久设置,修改配置文件/etc/security/limits.conf
+	  用户或组    硬限制或软限制    需要限制的项目   限制的值
+	   *		soft(软)	  nofile	   10000
+	   *		hard(硬)	  nofile	   10000
+		nofile=number of file (文件数量)
+  4.优化Nginx数据包头缓存(414报错,优化此项)
+  client_header_buffer_size    1k;        //默认请求包头信息的缓存    
+  large_client_header_buffers  4 4k;     //大请求包头部信息的缓存个数与容量
+  5.浏览器本地缓存静态数据
+ 	浏览器的缓存最好对多媒体文件:mp3,mp4,jpg...
+	文字不适合缓存
+	about:cached(查看缓存记录)
+	location ~* \.(jpg|jpeg|gif|png|css|js|ico|xml)$ {
+	expires        30d;            //定义客户端缓存时间为30天
+	}
+  6.日志切割/usr/local/nginx/logs/
+	-access.log:默认访问日志
+	-error.log:报错日志
+	-nginx.pid:PID进程号
+	1)手动切割kill -l(查看kill选项)
+	  mv access.log access-`date +%F`.log
+	  kill -USR1 $(cat nginx.pid)  #生成新的access.log文件
+	2)自动完成
+	  编写脚本,书写周期性计划任务
+  7.对页面进行压缩处理
+	http {
+	.. ..
+	gzip on;                    //开启压缩
+	gzip_min_length 1000;       //小文件不压缩(单位字节)
+	gzip_comp_level 4;          //压缩比率(1-9)
+	gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+	//对特定文件压缩，类型参考mime.types(不建议对多媒体文件压缩,花费时间太常)
+	.. ..
+	}
+  8.服务器内存缓存
+	http { 
+	open_file_cache          max=2000  inactive=20s;
+		open_file_cache_valid    60s;
+		open_file_cache_min_uses 5;
+		open_file_cache_errors   off; //缓存不要报错
+	//设置服务器最大缓存2000个文件句柄，关闭20秒内无请求的文件句柄
+	//文件句柄的有效时间是60秒，60秒后过期
+	//只有访问次数超过5次会被缓存
+	} 
+#######################################################################
+
+Day04
+一、构建memcached服务
+  memcached服务是将数据库信息缓存在内存中，加快用户读取速度
+  1.装包memcached
+    	/usr/lib/systemd/system：存放所有服务的目录
+	配置文件memcached.server
+	/etc/sysconfig/memcached:存放ExecStart的各种属性
+	ExecStart:可以设定启动服务
+		PORT：端口号
+		USER：用户
+		MAXCONN：最大并发数
+		CACHESIZE：内存大小（M）
+		OPTIONS:选项
+  2.使用telnet访问
+	装包telnet
+	进入数据库：telnet ip地址 memcached端口
+
+二、客户信息缓存记录
+1>session(服务器记录客户登陆信息)、cookie(客户端的缓存)
+第一次访问服务器，服务器和客户端会记录保存一段时间，方便第二次访问
+client -----------------> server
+				[user,pass]
+				生成session文件[文件名：内容]
+				uuid：用户名：已登陆
+	<--------------------------------返回页面，包头cookie:uuid
+第二次访问------------------------------>cookie:uuid,找到对应的文件
+				  打开内容:用户名,已登陆
+2>共享session信息：1.ip_hash(弊端，宕机后还要重新生成)
+		   2.nfs共享文件(一般不用，太简单)
+		    3.搭建memcached(生产环境应用)
+三、连接php与memcached数据库（使集群数据相同）
+  1.装包php-pecl-memcache
+  2.修改配置文件/etc/php-fpm.d/www.conf
+    php_value[session.save_handler] = memcache
+    php_value[session.save_path] = "tcp://192.168.2.5:11211"
+  3.重起服务验证
+##################################################################
+
+Day05
+一、安装部署Tomcat服务器
+  httpd、nginx配合PHP、Python
+  Tomcat配合Java
+  1.安装JDK（openjdk）迷你版JRE
+	yum -y install  java-1.8.0-openjdk                //安装JDK
+ 	yum -y install java-1.8.0-openjdk-headless        //安装JDK
+	java -version                                    //查看JAVA版本
+  2.安装tomcat
+	tar -xf  apache-tomcat-8.0.30.tar.gz
+	mv apache-tomcat-8.0.30  /usr/local/tomcat
+	ls /usr/local/tomcat
+	bin/                      //主程序目录
+	lib/                      //库文件目录
+	logs/                     //日志目录  
+	temp/                  	 //临时目录
+	work/                     //自动编译目录jsp代码转换servlet
+	conf/                     //配置文件目录
+	webapps/                  //页面目录
+  3.起服务：/usr/local/tomcat/bin/startup.sh
+    关服务：/usr/local/tomcat/bin/shutdown.sh
+  4.netstat -nutlp |grep java        //查看java监听的端口
+	8005端口启动时会取随机数，random产生随机数可用urandom代替
+	mv /dev/random  /dev/random.bak
+	ln -s /dev/urandom  /dev/random
+  5.测试时加8080端口号验证
+二、使用Tomcat部署虚拟主机
+  1.配置文件结构
+  <Server>
+    <Service>
+	#Connector指定端口号
+	<Connector port=8080 />
+	<Connector prot=8009 />
+     #Engine指定域名
+    <Engine defaulthost=默认域名>
+	#根目录下需有ROOT目录存放页面文件
+	<Host name=域名 appBase=根目录>
+	#docBase修改根目录为base，其根目录默认在ROOT下
+	#reloadble重新加载，可有可无
+	<Context path="" docBase="base" reloadable="true"/> 
+	</Host>
+	<Host name=域名2 appBase=根目录>
+	#path实现跳转，域名2后跟/test将跳转到/var/www/html目录下
+	<Context path="/test" docBase="/var/www/html" reloadable="true"/>
+	</Host>
+	...
+    </Engine>
+    </Service>    
+  </Server>
+  2.修改配置文件
+  3.创建网页文件
+  4.重起服务
+  5.访问测试
+三、Tomcat加密网站部署
+  1.创建密钥keytool --help
+	//-genkeypair     生成密钥对
+	//-alias tomcat   密钥别名
+	//-keyalg RSA     定义密钥算法为RSA算法
+	//-keystore       定义密钥文件存储在:/usr/local/tomcat/keystore
+  2.修改配置文件
+	在<Connector port="8443"...中添加
+	keystoreFile="/usr/local/tomcat/keystore" keystorePass="123456" />
+  3.重起服务，验证
+四、使用Varnish加速Web
+  1.代理服务器，有缓存功能，nginx不会自动缓存
+    	不是为了实现负载均衡，而是实现Web加速
+   CND Content Delivery Network
+   	CDN的关键技术主要有内容存储和分发技术，使用户就近获取所需内容
+   DNS分离解析
+  2.安装varnish
+	gcc pcre-devel readline-devel ncurses-devel
+	python-docutils-0.11-0.2.20130715svn7687.el7.noarch.rpm
+ 	源码安装varnish-5.2.1.tar.gz
+  3.复制启动脚本及配置文件
+	 cp  etc/example.vcl /usr/local/etc/default.vcl #此处名称无所谓
+  4.修改代理配置文件
+	backend default {------------>此处default可以变更
+     .host = "192.168.2.100";
+     .port = "80";
+	 }
+  5.起服务，验证
+ 	1）varnishd -f /usr/local/etc/default.vcl
+ 	服务起后将缓存内容，变更后台页面暂时不会对客户端产生影响
+  	2）//varnishd –s malloc,128M       
+	   定义varnish使用内存作为缓存，空间为128M
+	3）//varnishd –s file,/var/lib/varnish_storage.bin,1G
+	   定义varnish使用文件作为缓存
+  6.查看日志
+  	varnishlog            //varnish日志（详细）
+	varnishncsa           //访问日志（简单）
+  7.更新缓存数据
+	varnishadm  
+	varnish > ban req.url ~ .* ------>可以更新指定页面
+	//清空缓存数据，支持正则表达式
+#####################################################################
+Day06
+一、Subversion（SVN）简介
+  1.版本控制系统，管理文件和目录，备份和恢复各个版本，允许和别人共同修改文档
+    方便文档的管理，可以供多人使用，记录每一次改变（特点）
+  2.架构
+	客户端：命令行，图形
+	通信方式：本地访问，SVN服务器，Web服务
+  3.版本模型1：多人访问会将数据覆盖
+    版本模型2（锁定-修改-解锁）：管理不方便，串行开发，忘记解锁等
+    版本模型3（拷贝-修改-合并）：方便用户并性工作，自动拷贝老文件
+二、部署SVN
+服务端：
+  1.装包：subversion
+  2.创建仓库：svnadmin create /var/svn/project
+  3.导入数据： cd 到目录
+	  	svn import . file：///var/svn/project -m "注释"
+  4.修改配置文件，创建账户与密码
+	所有配置文件，要求顶头写，开头不要有空格。
+    1)/var/svn/project/conf/svnserver.conf
+	 anon-access = none	//19行，匿名无任何权限 
+	 auth-access = write	//20行，有效账户可写  
+	 password-db = passwd	//27行，密码文件
+	 authz-db = authz	//34行，ACL访问控制列表文件
+    2)/var/svn/project/conf/passwd 
+	harry = 123456	//用户名和密码
+	tom = 123456	//用户名和密码
+    3)/var/svn/project/conf/authz
+	[文件目录]------------------->未声明的默认/的权限
+	harry = rw        //用户对项目根路径可读可写
+	tom = rw
+	* =			//表示所有用户无任何权限
+     4)起服务
+	svnserve -d  -r /var/svn/project
+	-d放入后台	-r文件库地址
+	客户端访问：svn://服务器IP地址
+     备注：启动服务也可以使用svnserve -d启动，
+     但客户端访问时需要指定绝对路径（svn://服务器IP/var/svn/project）
+	若用svnserve -d起服务
+	客户端访问：svn://服务端IP/var/svn/project
+客户端：
+  1.将服务器上的代码下载到本地
+    yum -y install subversion
+    cd /tmp 	//切换到临时目录
+    svn --usrename harry --password 123456 co svn://192.168.2.100 code  
+    //co表示下载，code表示下载到此目录下（若无则创建）
+  2.修改后提交代码
+    svn ci -m "备注"  	//自动上传修改的文件
+  3.svn操作命令格式
+    svn update           //将服务器上新的数据同步到本地
+    svn info svn://192.168.2.100    //查看版本仓库基本信息
+    svn log svn://192.168.2.100     //查看版本仓库的日志
+    svn add test.sh                 //将文件或目录加入版本控制
+    svn add test.sh                 //将文件或目录加入版本控
+    svn mkdir subdir                //创建子目录
+    svn rm timers.target            //使用svn删除文件
+    svn diff                        //查看所有文件的差异
+    svn cat svn://192.168.2.100/reboot.target    //查看服务器文件的内容
+    sed -i 'd' tmp.mount		//删除文件所有内容，但未提交
+    svn revert tmp.mount		//还原tmp.mount文件
+    svn merge -r7:2 tuned.service 	//将文件从版本7还原到版本2
+    svn co -r1 svn://192.168.2.100 abc 	//重新下载1版本
+  4.svn命令列表
+	add		添加文件
+ 	commit(ci)	提交更新
+	checkout(co)	检出代码（下载）
+	cat		查看代码文件内容
+	del		删除文件
+	diff		文件对比
+	import	导入代码
+	info		查看版本信息
+	list		查看文件列表
+	log		查看版本历史（日志）
+	update	更新
+	mkdir		创建目录
+三、使用Subversion协同工作
+  1.不同用户修改不同文件
+    上传后数据库的信息会更新,互不受影响
+    需svn update更新其他用户更改的数据
+  2.不同用户修改相同文件的不同行
+    第二个用户需先svn update更新数据，再上传数据版本
+    更新数据时，会将本地修改数据自动合并
+  3.不同用户修改相同文件的相同行
+    后提交的用户svn update时会提示冲突
+   (p) postpone		推迟，暂不解决
+   (df) diff-full		显示全部差异
+   (e) edit			编辑
+   (mc) mine-conflict 	我的版本
+   (tc) theirs-conflict  他的版本
+   (s) show all   	显示全部选项
+   选择P后，会生成.mine(自己修改的文件)
+   		   .r13(未修改的文件)
+   		   .r14(他人修改的文件)
+		    原文件内容会显示差异
+  4.备份所有版本库的数据
+    备份:svnadmin dump /var/svn/project > /root/svn.bak
+    新建仓库:svnadmin create /var/svn/project1
+    还原:svnadmin load /var/svn/project1 < /root/svn.bak
+  5.版本控制软件
+    CVS，SVN（用的最多）,Git(linus编写的，较新)
+四、制作nginx的RPM包
+  1.安装rpm-build
+  2.生成rpmbuild目录结构
+ 	rpmbuild -ba nginx.spec 	#会报错，生成rpmbuild目录
+	ls /root/rpmbuild
+	SOURCES:放源码包
+	RPMS：结果会放此目录
+	SPECS：书写各种参数，核心工作 
+		License(协议):GPL(开源)
+		%post:运行脚本后执行
+	SRPMS:放源码包和spec文件
+  3.生成rpm包：rpmbuild -ba nginx.spec
+  4.在RPMS中生成rpm包，可以createrepo做成yum仓库
+########################################################################
+Day07
+一、VPN服务
+  1.概述:Vritual Private Network(虚拟专用网络)
+    -在公用网络上建立专用私有网络，进行通讯加密
+    -多用于集团为各地子公司建立连接
+    -偶尔可以用于翻墙
+    -目前主流VPN技术(GRE,PPTP,L2TP+IPSec,SSL)
+  2.GRE VPN（linux内核支持的）
+    简单，windows不支持，只能一对一
+    1)给两台linux配置IP
+    2)激活gre：modprobe ip_gre
+    3)创建隧道:ip tunnel add tun0 mode gre remote 对方IP local 本机IP
+    4)启动隧道:ip link set tun0 up
+    5)给隧道配IP:ip addr add 本地IP/掩码 peer 对方IP/掩码 dev tun0
+    显示模块列表：lsmod
+    查看模块信息：modinfo ip_gre
+    查看配置隧道：ip link show
+    查看隧道IP：ip a s
+    删除隧道：ip tunnel del tun0(隧道名)
+  3.PPTP VPN
+    windows支持，多对多，未做加密
+    1)给windows配置IP,关闭防火墙，ping
+    2)装包（linux上）pptpd
+    3)修改配置文件
+      1>/etc/pptpd.conf
+	      localip 本机IP	//服务器本地IP
+	      remoteip 隧道网段	//分配给客户端的IP池
+      2>/etc/ppp/options.pptpd
+      	require-mppe-128      //使用MPPE加密数据
+		ms-dns 8.8.8.8             //DNS服务器
+			114.114.114.114	   //通用谷歌DNS地址
+ 	3>/etc/ppp/chap-secrets	  //修改账户配置文件
+ 		//用户名    服务器标记    密码    客户端
+ 		*服务器标记必须与/etc/ppp/options.pptpd中的name值相同
+  	4>echo "1" > /proc/sys/net/ipv4/ip_forward    
+  	  //开启路由转发(翻墙时需改此配置)
+    4)起服务：systemctl start pptpd
+    5)翻墙设置（测试不用）
+       iptables -t nat -A POSTROUTING -s 192.168.3.0/24 \
+       -j SNAT --to-source 201.1.2.5
+  4.L2TP+IPSec VPN
+    做加密，安全性高
+  IPSec
+    1)装包libreswan
+    2)主配置文件/etc/ipsec.conf
+      include /etc/ipsec.d/*.conf  //加载该目录下所有配置文件
+      在/etc/ipsec.d/下新建.conf配置文件
+      tar包中模版lnmp_soft/vpn/myipsec.conf
+      man ipsec.conf(有所有的加密算法)
+    3)创建预共享密钥
+      主配置文件/etc/ipsec.secrets
+        include /etc/ipsec.d/*.secrets  //同上
+      在/etc/ipsec.d/下新建.secrets文件
+        格式：服务器IP 客户端（%any:） PSK(pre share key) "密钥"
+    4)起服务systemctl start ipsec
+	查服务netstat -ntulp |grep pluto
+   XL2TP
+     1)装包xl2tpd
+     2)修改配置文件
+       1>/etc/xl2tpd/xl2tpd.conf	 //修改主配置文件
+         ip range = 192.168.3.128-192.168.3.254    //分配给客户端的IP池
+	   local ip = 201.1.2.10                     //VPN服务器的IP地址
+	 2>/etc/ppp/options.xl2tpd 	 //认证配置
+	   require-mschap-v2      //添加一行，强制要求认证
+ 	   crtscts                //注释或删除该行(过期命令)
+	   lock                   //注释或删除该行(过期命令)
+	 3>/etc/ppp/chap-secrets		 //修改密码文件
+	   格式://账户名称   服务器标记   密码   客户端IP
+     3)起服务systemctl start xl2tpd
+     4)路由转发和翻墙同pptp
+
+二、NTP时间同步
+
+
+
+三、PSSH远程工具
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

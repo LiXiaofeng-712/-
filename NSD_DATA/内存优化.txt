@@ -1,0 +1,163 @@
+tcp_syncookies是一个开关，是否打开SYN Cookie功能，该功能可以防止部分SYN攻击。tcp_synack_retries和tcp_syn_retries定义SYN的重试次数。
+
+----------------------------------------参数说明------------------------------------------------------------------
+
+$ /proc/sys/net/core/wmem_max
+最大socket写buffer,可参考的优化值:873200
+
+$ /proc/sys/net/core/rmem_max
+最大socket读buffer,可参考的优化值:873200
+
+$ /proc/sys/net/ipv4/tcp_wmem
+TCP写buffer,可参考的优化值: 8192 436600 873200
+
+$ /proc/sys/net/ipv4/tcp_rmem
+TCP读buffer,可参考的优化值: 32768 436600 873200
+
+$ /proc/sys/net/ipv4/tcp_mem
+同样有3个值,意思是:
+net.ipv4.tcp_mem[0]:低于此值,TCP没有内存压力.
+net.ipv4.tcp_mem[1]:在此值下,进入内存压力阶段.
+net.ipv4.tcp_mem[2]:高于此值,TCP拒绝分配socket.
+上述内存单位是页,而不是字节.可参考的优化值是:786432 1048576 1572864
+
+$ /proc/sys/net/core/netdev_max_backlog
+进入包的最大设备队列.默认是300,对重负载服务器而言,该值太低,可调整到1000.
+
+$ /proc/sys/net/core/somaxconn
+listen()的默认参数,挂起请求的最大数量.默认是128.对繁忙的服务器,增加该值有助于网络性能.可调整到256.
+
+$ /proc/sys/net/core/optmem_max
+socket buffer的最大初始化值,默认10K.
+
+$ /proc/sys/net/ipv4/tcp_max_syn_backlog
+进入SYN包的最大请求队列.默认1024.对重负载服务器,增加该值显然有好处.可调整到2048.
+
+$ /proc/sys/net/ipv4/tcp_retries2
+TCP失败重传次数,默认值15,意味着重传15次才彻底放弃.可减少到5,以尽早释放内核资源.
+
+$ /proc/sys/net/ipv4/tcp_keepalive_time
+$ /proc/sys/net/ipv4/tcp_keepalive_intvl
+$ /proc/sys/net/ipv4/tcp_keepalive_probes
+这3个参数与TCP KeepAlive有关.默认值是:
+
+tcp_keepalive_time = 7200 seconds (2 hours)
+tcp_keepalive_probes = 9
+tcp_keepalive_intvl = 75 seconds
+
+意思是如果某个TCP连接在idle 2个小时后,内核才发起probe.如果probe 9次(每次75秒)不成功,内核才彻底放弃,认为该连接已失效.对服务器而言,显然上述值太大. 可调整到:
+
+/proc/sys/net/ipv4/tcp_keepalive_time 1800
+/proc/sys/net/ipv4/tcp_keepalive_intvl 30
+/proc/sys/net/ipv4/tcp_keepalive_probes 3
+
+$ proc/sys/net/ipv4/ip_local_port_range
+指定端口范围的一个配置,默认是32768 61000,已够大.
+
+ 
+
+net.ipv4.tcp_syncookies = 1
+表示开启SYN Cookies。当出现SYN等待队列溢出时，启用cookies来处理，可防范少量SYN攻击，默认为0，表示关闭；
+
+net.ipv4.tcp_tw_reuse = 1
+表示开启重用。允许将TIME-WAIT sockets重新用于新的TCP连接，默认为0，表示关闭；
+
+net.ipv4.tcp_tw_recycle = 1
+表示开启TCP连接中TIME-WAIT sockets的快速回收，默认为0，表示关闭。
+
+net.ipv4.tcp_fin_timeout = 30
+表示如果套接字由本端要求关闭，这个参数决定了它保持在FIN-WAIT-2状态的时间。
+
+net.ipv4.tcp_keepalive_time = 1200
+表示当keepalive起用的时候，TCP发送keepalive消息的频度。缺省是2小时，改为20分钟。
+
+net.ipv4.ip_local_port_range = 1024 65000
+表示用于向外连接的端口范围。缺省情况下很小：32768到61000，改为1024到65000。
+
+net.ipv4.tcp_max_syn_backlog = 8192
+表示SYN队列的长度，默认为1024，加大队列长度为8192，可以容纳更多等待连接的网络连接数。
+
+net.ipv4.tcp_max_tw_buckets = 5000
+表示系统同时保持TIME_WAIT套接字的最大数量，如果超过这个数字，TIME_WAIT套接字将立刻被清除并打印警告信息。默认为180000，改为 5000。对于Apache、Nginx等服务器，上几行的参数可以很好地减少TIME_WAIT套接字数量，但是对于Squid，效果却不大。此项参数可以控制TIME_WAIT套接字的最大数量，避免Squid服务器被大量的TIME_WAIT套接字拖死
+
+
+
+
+tcp_fin_timeout ：INTEGER
+默认值是 60
+对于本端断开的socket连接，TCP保持在FIN-WAIT-2状态的时间。对方可能会断开连接或一直不结束连接或不可预料的进程死亡。默认值为 60 秒。过去在2.2版本的内核中是 180 秒。您可以设置该值﹐但需要注意﹐如果您的机器为负载很重的web服务器﹐您可能要冒内存被大量无效数据报填满的风险﹐FIN-WAIT-2 sockets 的危险性低于 FIN-WAIT-1 ﹐因为它们最多只吃 1.5K 的内存﹐但是它们存在时间更长。另外参考 tcp_max_orphans。(事实上做NAT的时候,降低该值也是好处显著的,我本人的网络环境中降低该值为30)
+
+
+Nginx模块信息
+1. 通用配置选项：
+   --prefix=<path>          指定Nginx的安装路径，所有其他的路径都要依赖于该选项
+   --sbin-path=<path>       指定Nginx二进制文件的路径。如果没有指定，那么这个路径将依赖于--prefix选项
+   --conf-path=<path>       指定Nginx的配置文件的路径，如果在命令行没有指定配置文件，那么将会通过这里指定路径。
+   --error-log-path=<path>  指定错误日志文件路径，Nginx将会往里面写入错误日志文件，除非有其它的配置。
+   --pid-path=<path>        指定的Nginx master进程的PID文件位置，通常在/var/run下
+   --lock-path=<path>       共享存储器互斥锁文件的路径
+   --user=<user>            worker进程运行的用户
+   --group=<group>          worker进程运行的组
+   --with-file-aio.         为FreeBSD4.3 +和linux 2.6.22 +系统启用异步I/O
+   --with-debug             这个选项用于启用调试日志，在生产环境的系统中不推荐使用
+
+2. 邮件代理的配置选项：
+   --with-mail              该选项用于启用Mail模块，该模块默认没有被激活
+   --with-mail_ssl_module   为了代理任何一种类型的使用SSL/TLS的Mail,激活该模块
+   --without-mail_pop3_module  在启用Mail模块后，单独地禁用pop3模块
+   --without-mail_imap_module  再启用mail模块后，单独地禁用IMAP模块
+   --without-mail_smtp_module  在启用mail模块后，单独地禁用smtp模块
+   --without--http           该选项将完全禁用http模块，如果你只想支持
+
+3. 指定路径的配置选项：
+   --without-http_perl_module  Nginx配置能够使用扩展使用Perl代码，这个选项启用这个模块（此模块会降低性能）
+   --without-perl_module_path=<path> 对于额外嵌入的Perl模块，使用该选项指定该Perl解析器的路径，也可以通过配置选项来指定Perl模块解析器的位置
+   --without—perl=<path>    如果在默认路径中没有找到Perl，那么指定Perl的路径
+   --http-log-path=<path>    Http访问日志的默认路径
+   --http-client-body-temp-path=<path>  从客户端收到请求后，该选项设置的目录用于作为请求体临时存放的目录。如果WebDAV模块启用，那么推荐设置该路径为同一文件系统上的目录作为最终的目的地
+   --http-proxy-temp-path=<path>  在使用代理后，通过该选项设置存放临时文件路径
+   --http-fastcgi-temp-path=<path> 设置FastCGI临时文件的目录
+   --http-uwsgi-temp-path=<path>   设置uWSGI临时文件的目录
+   --http-scgi-temp-path=<path>    设置SCGI临时文件的目录
+
+4.  各种模块配置选项：
+   --with-http_ssl_module     如果需要对流量进行加密，可以使用该选项，在URLs中开始部分将会是https（需要OpenSSL库）
+   --with-http_realip_module  如果你的Nginx在七层负载均衡器或者是其他设备之后，它们将http头中的客户端IP地址传递，那么你将会需要启用这个模块。在多个客户处于一个IP地址的情况下使用
+   --with-http_addition_module 这个模块作为输出过滤器，使你能够在请求经过一个location前或者后时在该location本身添加内容
+   --with-http_xslt_module    该模块用于处理XML响应转换，基于一个或者多个XSLT格式（需要libxml2和libxslt库）
+   --with-http_image_filter_module  该模块被作为图像过滤器使用，在将图形投递到客户之前进行处理（需要libgd库）
+   --with-http_geoip_module    使用该模块，能够设置各种变量以便在配置文件中区段使用，基于地理位置查找客户端IP地址（需要MaxMfind GeoIP库和相应的预编译数据库文件）
+   --with-http_sub_module      该模块实现了替代过滤，在响应中用一个字符串替代另一个字符串
+   --with-http_dav_module      启用这个模块将激活使用WebDAV的配置指令。注意：这个模块也只在有需要使用的基础上启用，如果配置不正确，它将带来安全问题。
+   --with-http_flv_module      如果需要提供Flash流媒体视频文件，那么该模块将会提供伪流媒体
+   --with-http_mp4_module      这个模块支持H.264/AAC文件伪流媒体
+   --with-http_gzip_module     当被调用的资源没有.gz结尾格式的文件时，如果想支持发送预压缩版本的静态文件，那么使用该模块
+   --with-http_gunzio_module   对应不支持gzip编码的客户，该模块用于为客户解压缩预压缩内容
+   --with-http_random_index_module 如果你想提供从一个目录中随机选择文件的索引文件，那么这个模块需要被激活
+   --with-http_secure_link_module  该模块提供了一个机制，它会将一个哈希值链接到一个URL中，因此，只有那些使用正确的密码能够计算链接
+   --with-http_stub_status_module  启用这个模块后会收集Nginx自身的状态信息。输出的状态信息可以使用RRDtool或类似的东西来绘制成图
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

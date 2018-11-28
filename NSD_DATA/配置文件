@@ -1,0 +1,73 @@
+/etc/passwd   		用户详细配置文件
+/etc/shadow   		密码详细配置文件
+/etc/group			组配置文件存放处
+/etc/gshadow  		组密码配置文件
+/home 	  		用户存放目录
+/etc/hostname  		永久修改主机名配置文件
+~(家目录)/.bashrc    	永久修改指定用户的别名配置文件
+/etc/bashrc			永久修改所有用户别名的配置文件
+/etc/yum.repos.d/*.repo  存放安装YUM的配置文件
+/etc/chrony.conf    	NTP客户端校时服务配置文件
+/etc/sysconfig/network-scripts/ifcfg-eth0    IP地址(网卡)配置文件
+/etc/resolv.conf		DNS永久配置文件(客户端)
+/etc/named.conf		DNS主配置文件(服务端)
+/var/named/...		DNS地址库文件(服务端)
+/etc/fstab			开机自动挂载配置文件
+/etc/selinux/config 	SElinux模式配置文件
+/etc/vsftpd/vsftpd.conf		FTP配置文件
+/var/www/html/index.html		HTTP服务默认网页文件起始点/根目录
+/etc/httpd/conf/httpd.conf	HTTP主配置文件
+/etc/httpd/conf.d/*.conf		HTTP调用配置文件（使主配置文件简洁）
+/etc/httpd/conf.d/ssl.conf	 HTTPS加密配置文件
+/etc/samba/smb.conf		samba跨平台共享服务配置文件
+/etc/exports			NFS网络共享服务配置文件（Linux与Linux之间）
+/etc/my.cnf				MariaDB主配置文件
+/etc/iscsi/initiatorname.iscsi	iSCSI客户端配置iqn名称配置文件
+/etc/postfix/main.cf		SMTP/POP3邮件服务配置文件
+/etc/dhcp/dhcpd.conf		DHCP自动获取IP地址的配置文件
+
+	http:超文本传输协议				  80
+	https:安全超文本传输协议     		  443
+	ftp：文件传输协议			 	  21
+ 	dns：域名解析协议				  53
+	telnet：远程管理协议				  23
+	tftp：简单文件传输协议			  69
+	smtp：邮件协议（用户发邮件）			  25	
+	pop3：邮件协议（用户收邮件）			  110
+	snmp：网络管理协议 				  161
+	MariaDB				 	3306
+	iscsi磁盘				 	3260
+	SSH 						22
+
+
+/etc/shells			Shell脚本解释器的文件
+/etc/profile		修改历史记录数量的文件
+/root/.bash_history	永久清除历史记录文件
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
