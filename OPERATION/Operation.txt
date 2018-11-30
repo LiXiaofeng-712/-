@@ -721,29 +721,54 @@ Day07
 	   格式://账户名称   服务器标记   密码   客户端IP
      3)起服务systemctl start xl2tpd
      4)路由转发和翻墙同pptp
-
 二、NTP时间同步
-
-
-
+  1.装包chrony
+  2.修改配置文件/etc/chrony.conf
+	rpm -qc 软件名		//查询安装的软件配置文件
+	allow ip/掩码		 //允许那个IP或网络访问NTP
+	deny ip/掩码			 //拒绝那个IP或网络访问NTP
+	local stratum 15(最大)	 //设置NTP服务器的层数量
+  3.重起服务
+  4.客户端装包,配置同步时间服务器
+  *当有润秒时(59 60 00),需关闭NTP时间同步,国际组织不定时调整
 三、PSSH远程工具
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+ 安装软件包pssh
+	/usr/bin/pnuke
+	/usr/bin/prsync
+	/usr/bin/pscp.pssh
+	/usr/bin/pslurp
+	/usr/bin/pssh
+  修改文件/etc/hosts(非必做项)
+ 	添加:IP 名称	//方便后续远程
+  新建vim /root/host.txt
+	添加:root@node1
+	    (用户@)node2
+	    (不加默认root@)node3
+  以下所有命令可man帮助查看用法
+  1.pssh(批量远程)语法格式
+	-A                使用密码远程其他主机（默认使用密钥）
+	-i                将输出显示在屏幕
+	-H                设置需要连接的主机
+	-h                设置主机列表文件
+	-p                设置并发数量
+	-t                设置超时时间
+	-o dir            设置标准输出信息保存的目录
+	-e dir            设置错误输出信息保存的目录
+	-x                传递参数给ssh
+    非交互生成密钥:
+	ssh-keygen -N '' -f /root/.ssh/id_rsa
+		-N '' 表示密钥不用再加密
+		-f .. 表示密钥存放路径
+  2.pscp.pssh(批量拷贝)语法格式
+	pscp.pssh -h host.txt 本地文档 目标目录
+	-r    递归拷贝目录
+	其他选项基本与pssh一致
+  3.pslurp(批量下载)
+	pslurp -h host.txt 远程文件 /文件名(默认在当前目录创建目录)
+	下载后的文件路径:当前目录/主机名/文件名
+	-L 	指定下载目录
+  4.pnuke(批量杀死进程),
+ 	pnuke -h host.txt 进程名(模糊匹配,包含即可)
 
 
 
