@@ -1,0 +1,251 @@
+CLUSTER
+
+Day01
+DAS:本地直连(不能扩容)
+NAS:网络存储,文件系统存储,nfs,samba
+SAN:网络存储,块存储,iscsi,需搭配光纤设备
+SSD(固态盘):intel 三星(只有这两厂商)
+
+一、ISCSI部署
+  略
+  iscsi允许多客户挂载和读，但不能同时写
+  nfs允许同时多客户读写
+  非交互式GPT分区：
+ 	parted /dev/sda mklabel gpt
+	parted /dev/sda mkpart primary 1 100%(主分区 1 全分)
+  ftp共享时需设置可以解锁上传权限/etc/vsftpd/vsftpd.conf
+	#anon_upload_enable=YES
+	#anon_mkdir_write_enable=YES
+  备份：电源2，网卡2，磁盘raid，4路CPU(16核 至强),
+	内存条(16根32根 每根16G 支持ECC)...
+二、部署Multipath多路径环境
+  1.装包device-mapper-multipath
+  2.生成配置文件
+	cd /usr/share/doc/device-mapper-multipath-0.4.9/
+ 	cp multipath.conf  /etc/multipath.conf
+  3.获取2个磁盘的wwid
+	/usr/lib/udev/scsi_id --whitelisted --device=/dev/sda
+  4.修改配置文件/etc/multipath.conf
+	defaults {
+		user_friendly_names yes
+	find_multipaths yes
+	}
+	multipaths {	//声明做多路径，可以做N个
+	    multipath {
+		wwid    "360014059e8ba68638854e9093f3ba3a0"
+		alias   mpatha	//起个别名
+   	 }
+	}
+  5.重起服务，验证
+	在/dev/mapper/下出现mpatha
+	以后直接运用mpatha即可
+  6.分区,格式化,挂载
+  6.查看挂载后多路径连接磁盘状态multipath -rr
+三、编写UDEV设备规则
+  静态管理(2.6版本以前)：所有设备都要存放在/dev下,/dev/下设定的东西都是临时的
+  动态管理(2.6版本以后)：/sys目录，内核动态识别硬件(存放硬件信息)
+  流程：  内核读取硬件信息--保存信息到/sys，并通知udev程序
+	  udev动态的把设备写入到/dev
+	  1./dev/新建文件(名称、权限、所有者、所属组)
+	  2.可以触发动作(命令)
+  原理作用：从内核受到添加/移除硬件事件时，udev会分析：
+	  -/sys目录下信息
+        -/etc/udev/rules.d目录中的规则
+  	  基于分析结果，udev会：
+	  -处理设备命名
+	  -决定要创建哪些设备文件或链接
+	  -决定如何设置属性
+	  -决定触发哪些事件
+  udev应用
+  时时查看事件监控:
+	udevadm monitor --property
+		action=add/remove(插入/拔除U盘)
+  查看已经存在的设备信息:
+	udevadm info --query=path --name=/dev/sdb
+		--qurey（查讯）	
+		/devices/pci0000:00/0000:00:14.0/usb1/1-8/1-8:1.0/host6/target6:0:0/6:0:0:0/block/sdb
+  用前一条命令的路径/block/sdb查详细信息:
+	udevadm info --query=property --path=/block/sdb
+  查所有属性:
+	udevadm info --query=all --attribute-walk --path=/block/sdb
+  查分区:
+	udevadm info --query=property --path=/block/sdb/sdb1
+  在所有终端广播信息
+	wall "xxx"
+  新建/etc/udev/rules.d/*.rules文件或/usr/lib/udev/rules.d/*.rules
+	SUBSYSTEMS=="usb",	//插入系统类型
+	EVN{VENDOR}/ATTRS{manufacturer}=="TOSHIBA",	//厂商
+	ATTRS{serial}=="60A44CB4665EEE4133500001",	//序列号
+	RUN+="/usr/bin/wall udisk plugged in"  //插入后执行命令(绝对路径)
+	...
+  常见指令操作符:
+	==	匹配
+	!=	不匹配
+	=	赋值
+	+=	添加新值
+	:=	指定值，且不允许被覆盖
+	NAME=""	定义设备名
+	SYMLINK+=""	设置连接，别名(分区才做连接)
+	WONER=""	定义设备所有者
+	MODE=""	定义设备权限
+	KERNEL==""	判断设备的内核名称
+	RUN+=程序	指定
+  udev常用替代变量:
+	%k：内核所识别出来的设备名，如sdb1
+	%n：设备的内核编号，如sda3中的3
+	%p：设备路径，如/sys/block/sdb/sdb1
+	%%：%符号本身
+
+1.查询U盘信息
+2.在/etc/udev/rules.d/下创建.rules文件，设定条件和命令
+  条件属性用udevadm查询,设定NAME,SYMLINK,WONER,GROUP,MODE
+3.验证查询结果
+
+四、NFS共享
+  注意点:nfs共享文件客户端访问时会默认降级，
+	修改配置文件时添加no_root_squash，不限制root权限
+#################################################################
+Day02
+
+集群
+概念：任务调度是集群系统的核心技术
+作用：提高性能，降低成本，提高可扩展性，增强可靠性
+分类：  高性能(HPC),解决复杂的科学问题
+	负载均衡(LB),客户端负载计算机集群中尽可能平均分摊(企业用的较多)
+	高可用(HA)，避免单点故障
+
+LVS集群（Linux内核自带）
+工作在OSI第四层tcp/ip层
+组成：前端（调度器），中间（web服务器，带PHP，JAVA等），后端（数据库）
+术语： Director Server，调度器
+	Real Server,真实服务器
+	VIP，虚拟IP地址（公网的给用户访问的虚拟IP地址）
+	RIP，真实IP地址（集群节点上使用的IP地址）
+	DIP,调度器连接后端服务器的IP地址
+工作模式：NAT模式（类似nginx做调度，地址转换功能，大并发时调度器性能成为瓶颈）
+	  TUN模式（隧道模型，调度器和集群不在一个地区，很少用）
+	  DR模式（直连路由模式，集群直接将结果返回给客户，不过调度器，减轻调度器压力）
+LVS目前实现了10种调度算法
+常用的调度算法有4种：
+	轮询(Round Robin)，加权轮询(Weighted Round Robin)，
+	最少连接(Least Connections)，加权最少连接(Weighted Least Connections)，
+	源地址散列（类似ip_hash）
+其他算法（不常用）：基于局部性的最少连接，带复制的基于局部性最少连接，目标地址散列，最短的期望延迟，最少队列调度
+
+部署LVS-NAT集群
+1.装包ipvsadm
+  man ipvsadm
+  命令选项：-A	添加虚拟服务器
+	-E	修改虚拟服务器
+	-D	删除虚拟服务器
+	-C	清空所有
+	-a	添加真实服务器
+	-e	修改真实服务器
+	-d	删除真实服务器
+	-Ln	查看规则列表
+	-s[rr|wrr|lc|wlc]	指定算法
+	-t	tcp协议+IP地址
+	-u	udp协议+IP地址
+	-r	rip的ip地址
+	-g	DR模式
+	-i	隧道模式
+	-m	NAT模式
+	-w	设置权重
+永久保存所有规则：ipvsadm-save -n > /etc/sysconfig/ipvsadm
+查看网关：route -n/ip route
+调度器需开路由转发功能：
+	临时：/proc/sys/net/ipv4/ip_forward 调整为1
+	永久：echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+总结：
+  注:此方法后端集群主机不能和客户端直接通信
+  1)ipvsadm -A创建集群调度,-t|u协议,-s算法
+  2)ipvsadm -a添加集群rip，模式，权重
+  3)开启路由转发echo 1 > /proc/sys/net/ipv4/ip_forward
+	永久：echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+  4)客户端配置web服务，将网关配置为调度IP地址
+客户端--->调度器---->地址转换将包---->后端集群
+部署LVS-DR集群
+  1)设置Proxy代理服务器的VIP和DIP
+  注意：为了防止冲突，VIP必须要配置在网卡的虚拟接口！！！
+  2)设置后端服务器网络参数
+  	DEVICE=lo:0			//设备
+	NAME=lo:0			//名字
+	ONBOOT=yes			//开机启动
+	IPADDR=192.168.4.15	//IP地址
+	NETMASK=255.255.255.255	//子网掩码
+	NETWORK=192.168.4.15	//网络ID
+	BROADCAST=192.168.4.15	//广播地址
+  3)防止地址冲突的问题：
+    这里因为web1也配置与代理一样的VIP地址，默认肯定会出现地址冲突；
+    sysctl.conf文件写入这下面四行的主要目的就是访问192.168.4.15的数据包，
+     只有调度器会响应，其他主机都不做任何响应，这样防止地址冲突的问题。
+    	net.ipv4.conf.all.arp_ignore = 1	//忽略所有物理网卡回应arp广播
+	net.ipv4.conf.lo.arp_ignore = 1	//忽略所有lo回应arp广播
+	net.ipv4.conf.lo.arp_announce = 2	//所有lo不对外宣告自己回环地址
+	net.ipv4.conf.all.arp_announce = 2 	//所有物理网卡不对外宣告自己回环地址
+  4)sysctl -p 使上述文件内容生效
+  	#当有arp广播问谁是192.168.4.15时，本机忽略该ARP广播，不做任何回应
+	#本机不要向外宣告自己的lo回环地址是192.168.4.15
+  5)重起network服务
+  6)此服务不带健康检查,不会发现后端服务器是否宕机,需脚本检测
+    #!/bin/bash
+    rip=192.168.4
+    vip=192.168.4.15
+    while :
+    do
+       for i in 100 200
+         do
+           curl http://$rip.$i &> /dev/null
+           if [ $? -eq 0 ];then
+             ipvsadm -Ln | grep $rip.$i || ipvsadm -a -t $vip:80 -r $rip.$i
+           else
+             ipvsadm -Ln | grep $rip.$i && ipvsadm -d -t $vip:80 -r $rip.$i
+           fi
+         done
+     done &
+##########################################################################
+Day03
+
+Keepalived高可用集群
+两个主要功能:
+	  1.浮动IP
+	  2.自动配置LVS
+一、部署keepalived高可用服务
+  1.安装软件包keepalived
+  2.修改配置文件/etc/keepalived/keepalived.conf
+    global_defs{设置报警收件人，发件人，邮件服务器，路由IP（主机名）}
+    vrrp_instance VI_1{服务器初始主次(master，backup)，网络接口，虚拟id组号要相同
+   ，优先级，间隔时间(默认1秒)，密码，浮动IP(可以多个)}
+  3.重起服务
+    查看配置效果:ip a s 网卡
+  4.清空防火墙规则
+    iptables -F
+二、部署keepalived+LVS服务
+  1.装包keepalived
+  2.修改配置文件/etc/keepalived/keepalived.conf
+    global_defs{同上}
+    vrrp_instance VI_1{同上}
+    virtual_server 集群vip地址 端口号 {
+      -s算法，-g,-m,-i模式,协议
+      real_server 后端RIP地址 端口号 {
+          权重
+          TCP_CHECK {  	//健康检查
+            connect_timeout 3  	//连接超时时间3秒
+	      nb_get_retry 3		//连续发送3次请求
+	      delay_before_retry 3	//延迟3秒再次连接
+            }
+        }
+    }
+  3.重起服务
+  4.清空防火墙规则
+三、HAProxy负载平衡集群
+  LVS[性能最好，在内核中，功能少,不支持正则]
+  	keepalived+LVS绝配
+    访问模式与以下两个不同，调度器做了nat地址转化，数据包未发生变化
+  HAProxy[性能适中，但正则支持性差]
+  Nginx[性能比以上两个稍差，web，调度器，正则]
+    访问模式：客户访问调度器，调度器以客户身份访问后端集群，生成两个数据包
+
+
+
+
