@@ -246,6 +246,140 @@ Keepalived高可用集群
   Nginx[性能比以上两个稍差，web，调度器，正则]
     访问模式：客户访问调度器，调度器以客户身份访问后端集群，生成两个数据包
 
+  部署HAProxy环境
+    1.打开路由转发,安装haproxy软件包
+    2.修改配置文件/etc/haproxy/haproxy.cfg
+      main以下定义集群
+      格式:listen *:80	//监听所有来访IP的80端口
+        balance roundrobin	//集群算法
+        server web1 192.168.2.100:80	可以加权重 	//集群地址
+        server web2 192.168.2.200:80 check inter(健康检查时间) 2000(毫秒) rise(试几次算好) 2 fall(试几次算坏了) 5	
+       以下供了解:
+       global
+	 log 127.0.0.1 local2   ###[err warning info debug]
+	 chroot /usr/local/haproxy
+	 pidfile /var/run/haproxy.pid ###haproxy的pid存放路径
+	 maxconn 4000     ###最大连接数，默认4000
+	 user haproxy
+	 group haproxy
+	 daemon       ###创建1个进程进入deamon模式运行
+	defaults
+	 mode http    ###默认的模式mode { tcp|http|health } log global   ###采用全局定义的日志
+	 option dontlognull  ###不记录健康检查的日志信息
+	 option httpclose  ###每次请求完毕后主动关闭http通道
+	 option httplog   ###日志类别http日志格式
+	 option forwardfor  ###后端服务器可以从Http Header中获得客户端ip
+	 option redispatch  ###serverid服务器挂掉后强制定向到其他健康服务器
+	 timeout connect 10000 #如果backend没有指定，默认为10s
+	 timeout client 300000 ###客户端连接超时
+	 timeout server 300000 ###服务器连接超时
+	 maxconn  60000  ###最大连接数
+	 retries  3   ###3次连接失败就认为服务不可用，也可以通过后面设置
+    帮助文件在/usr/share/doc/haproxy-1.5.18/configuration.txt
+    3.重起服务验证systemctl restart haproxy
+    4.检测状态监控页面
+      listen *:端口号
+        stats uri /stats 	//统计页面
+        stats refresh 10s	//统计页面自动刷新时间
+        stats realm xxx		//统计页面密码框提示
+        stats auth admin:admin	//统计页面用户不名和密码设置
+        stats hide-version 	//隐藏统计页面HAProxy版本信息
+      Queue队列数据的信息（当前队列数量，最大值，队列限制数量）；
+	Session rate每秒会话率（当前值，最大值，限制数量）；
+	Sessions总会话量（当前值，最大值，总量，Lbtot: total number of times a server was selected选中一台服务器所用的总时间）；
+	Bytes（入站、出站流量）；
+	Denied（拒绝请求、拒绝回应）；
+	Errors（错误请求、错误连接、错误回应）；
+	Warnings（重新尝试警告retry、重新连接redispatches）；
+	Server(状态、最后检查的时间（多久前执行的最后一次检查）、权重、备份服务器数量、down机服务器数量、down机时长)。
+
+Nginx分析
+优点:
+  -工作在7层,可以针对http做分流策略
+  -正则表达式比HAProxy强大
+  -安装,配置,测试简单,通过日志可以解决多数问题
+  -并发量可以达到几万次
+  -Nginx还可以作为Web服务器使用
+缺点:
+  -仅支持http,https,mail协议,应用面小
+  -监控检查仅通过端口,无法使用url检查
+LVS分析
+优点:
+  -负载能力强,工作在4层,对内存,CPU消耗低
+  -配置性低,没有太多可配置性,减少人为错误
+  -应用面广,几乎可以为所有应用提供负载均衡
+缺点:
+  -不支持正则表达式,不能实现动静分离
+  -如果网站架构庞大,LVS0-DR配置比较繁琐
+HAProxy分析
+优点:
+  
+缺点:
+
+###########################################################################
+Day04
+
+传统存储:
+  NAS:文件系统共享[nfs,samba,http...]
+  SAN:块存储[FC,iscsi...]
+分布是存储:
+  Ceph(文件系统,块,对象存储)都支持
+  Lustre
+  Hadoop
+  FastDFS
+  GlusterFS
+Ceph组件:
+  OSD-存储设备(存东西的)
+  Monitor-集群监控组件
+  MDS-存放文件系统的元数据(描述数据)
+  Client-客户端需装ceph-common
+数据恢复软件:finaldata(了解) 
+一、环境准备
+  创建1台客户端虚拟机
+  创建3台存储集群虚拟机
+  配置主机名、IP地址、YUM源
+  修改所有主机的主机名
+  配置无密码SSH连接
+  配置NTP时间同步
+  创建虚拟机磁盘
+二、部署ceph集群
+  1.部署软件
+   	yum -y install ceph-deploy
+   	ceph-deploy --help	
+    创建目录(以后所有ceph命令都在此目录下进行)
+  2.部署集群
+    1）创建集群配置
+    	ceph-deploy new node1 node2 node3 ...
+    2)给所有节点安装软件包
+     	ceph-deploy install node1 node2 node3 ...
+    3)初始化所有节点mon服务（主机名解析必须对）
+    	ceph-deploy mon create-initial
+    	实际运行：cp * /etc/ceph
+    	yum -y install ceph-mon
+    	systemctl status ceph-mon@node1
+     ceph -s 	//查看ceph状态
+  3.创建OSD
+    实际生产中，有一块磁盘为ssd固态盘（加速用），其他为磁盘
+    1)分2个分区，为两个磁盘做缓冲
+     	parted /dev/vdb mklabel gpt
+     	parted /dev/vdb mkpart primary 1 50%
+     	parted /dev/vdb mkpart primary 50% 100%
+     修改2个分区所有者和所属组，设为永久/etc/udev/rules.d/*.rules
+     查找判断条件udevadm info --query=property --path=/block/vdb/vdb1
+    2)初始化清空磁盘数据
+    	ceph-deploy disk zap node1:vdc node1:vdd
+    rpm -qf /usr/sbin/ceph-disk	//查看此程序的软件包
+    3)创建OSD存储空间
+     	ceph-deploy osd create node1:vdc:/dev/vdb1 node1:vdd:/dev/vdb2
+     	创建osd存储盘，node1的vdc用vdb1做缓存盘...
+    ceph-deploy purgedata	//清空所有数据
+
+
+
+
+
+
+
 
 
 
