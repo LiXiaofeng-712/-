@@ -434,7 +434,6 @@ Day05
     rbd create 镜像名 --image-feature layering --size 10G
     rbd list 	//查看
   2.Ceph认证账户
-   
     默认开启认证
   3.部署客户端环境
     安装ceph-common软件包
@@ -459,12 +458,31 @@ Day05
     <auth username='admin'>
     <secret type='ceph' uuid='xxx' />
     </auth>
+  <source protocol='rbd' name='rbd/镜像'> 
+  <host name='ceph主机IP地址' port='ceph-mon服务端口' />
+  </source>
 二、Ceph文件系统(一个ceph只能做一个文件系统)
-  需要软件包ceph-mon ceph-osd ceph-mds
-  ceph osd create 数据池子
-  ceph osd create 描述信息的池子
-  ceph fs create 文件系统
-  mount -t ceph ip:端口:/ /挂载目录 
+  1.安装软件包ceph-mds
+  2.在部署ceph机台的目录下
+    ceph-deploy mds create node3	//给node3拷贝配置文件，启动mds服务
+  3.同步配置文件和key
+    ceph-deploy admin node3
+  4.创建存储池，对应128PG
+    ceph osd pool create cephfs_data 128 	//数据池
+    ceph osd pool create cephfs_metadata 128 	//描述信息池
+    ceph mds stat	//查看mds状态
+  5.创建ceph文件系统
+    ceph fs new 文件系统名字 池子1 池子2	//创建文件系统
+    ceph fs ls	//查看文件系统状态
+  6.客户端挂载使用
+    mount -t ceph IP:端口:/ 挂载点 -o name='用户名',secret='密码'
+    -t:文件类型	-o:选项
+丁大神总结：
+  1.需要软件包ceph-mon ceph-osd ceph-mds
+  2.ceph osd create 数据池子
+  3.ceph osd create 描述信息的池子
+  4.ceph fs create 文件系统
+  5.mount -t ceph ip:端口:/ /挂载目录 
   -o name=admin,secret=密码(ceph.client.admin.keyring)
 
 
