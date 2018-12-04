@@ -335,28 +335,28 @@ Ceph组件:
   Client-客户端需装ceph-common
 数据恢复软件:finaldata(了解) 
 一、环境准备
-  创建1台客户端虚拟机
-  创建3台存储集群虚拟机
-  配置主机名、IP地址、YUM源
-  修改所有主机的主机名
-  配置无密码SSH连接
-  配置NTP时间同步
-  创建虚拟机磁盘
+  配置IP,主机名
+  /etc/hosts
+  ntp时间同步
+  设置免密
+  添加磁盘
 二、部署ceph集群
   1.部署软件
    	yum -y install ceph-deploy
    	ceph-deploy --help	
-    创建目录(以后所有ceph命令都在此目录下进行)
+    创建目录(以后所有ceph-deploy命令都在此目录下进行)
   2.部署集群
     1）创建集群配置
     	ceph-deploy new node1 node2 node3 ...
+	创建出Ceph集群配置文件ceph.conf
     2)给所有节点安装软件包
      	ceph-deploy install node1 node2 node3 ...
+	安装ceph所需的基本软件包
     3)初始化所有节点mon服务（主机名解析必须对）
     	ceph-deploy mon create-initial
     	实际运行：cp * /etc/ceph
     	yum -y install ceph-mon
-    	systemctl status ceph-mon@node1
+    	systemctl start ceph-mon@node1
      ceph -s 	//查看ceph状态
   3.创建OSD
     实际生产中，有一块磁盘为ssd固态盘（加速用），其他为磁盘
@@ -371,15 +371,101 @@ Ceph组件:
     rpm -qf /usr/sbin/ceph-disk	//查看此程序的软件包
     3)创建OSD存储空间
      	ceph-deploy osd create node1:vdc:/dev/vdb1 node1:vdd:/dev/vdb2
+	实际运行:yum -y install ceph-osd
+		systemctl start ceph-osd@node1
      	创建osd存储盘，node1的vdc用vdb1做缓存盘...
     ceph-deploy purgedata	//清空所有数据
 
+    ceph -s:中的osd不够，权限不对，ceph-osd服务未起来
+    ps aux | grep osd :中可以手动起ceph-osd服务
+三、创建Ceph块存储
+  1.创建镜像
+    1）查看存储池:ceph osd lspools
+    2)创建，查看镜像
+	rbd create [池名(不写默认rbd池)]/[镜像名] --image-feature(添加功能) layering --size 10G
+	查看：rbd info 镜像名
+  2.调整镜像大小
+	减小:rbd resize --size 7G image(镜像名) --allow-shrink
+	增加:rbd resize --size 15G image(镜像名)
+  3.通过KRBD访问(K内核)
+    1)集群内将镜像映射为本地磁盘
+	rbd map 镜像名(运行一遍会多一块磁盘)
+	rbd unmap 镜像名	//删除镜像
+    2)通过KRBD访问
+	-在客户端需安装ceph-common软件包
+	-将集群中配置文件拷贝到客户端(可以找到群集在哪里)
+	  scp IP:/etc/ceph/ceph.conf 客户端IP://etc/ceph
+	-将集群中的密钥拷贝到客户端(否则无连接权限)
+	  scp IP:/etc/ceph/ceph.client.admin.keyring 客户端IP:/etc/ceph
+	-在客户端生成本的磁盘
+	  rbd map 镜像名	//生成磁盘
+	  rbd unmap 镜像名	//取消磁盘
+	-查看磁盘对应的镜像名
+	  rbd showmapped
+    3)格式化，挂载分区
+  4.创建镜像快照
+    原理:COW(copy on write)写时复制
+    1)查看镜像快照
+    	rbd snap ls 镜像
+    2)创建镜像快照
+      rbd snap create 镜像 --snap 快照名
+    3)删除镜像快照
+      rbd snap remove/rm 镜像 --snap 快照名
+    4)还原快照
+      rbd snap rollback 镜像 --snap 快照名
+  5.创建快照克隆
+    1)克隆快照
+      克隆快照时为防止过程中快照丢失，需提前保护
+      rbd snap protect 镜像名 --snap 快照名
+      rbd clone 镜像 --snap 快照 克隆镜像名 --image-feature layering
+    2)查看克隆镜像与父镜像快照关系
+      rbd info 镜像名
+      隐藏克隆镜像的关系信息
+      rbd flatten 镜像名
+###########################################################################
+Day05
 
-
-
-
-
-
+虚拟机：
+  本质就是文件
+  1.磁盘文件(/var/lib/libvirt/images/)   
+  2.xml描述文件(/etc/libvirt/qemu/)  
+一、ceph的应用
+  1.创建磁盘镜像
+    rbd create 镜像名 --image-feature layering --size 10G
+    rbd list 	//查看
+  2.Ceph认证账户
+   
+    默认开启认证
+  3.部署客户端环境
+    安装ceph-common软件包
+    Ceph上发送配置文件ceph.conf和用户名密码文件ceph.client.admin.keyring给客户端
+  4.创建KVM虚拟机
+  5.配置libvirt secret
+  新建yyy.xml文件，内容如下	//声明用户名
+  <secret ephemeral='no' private='no'>
+        <usage type='ceph'>
+                <name>client.admin secret</name>
+        </usage>
+  </secret>
+   virsh secret-define --file yyy.xml 	//使用上述文件创建uuid
+   virsh secret-list	//查看结果
+   virsh secret-set-value \	//将用户名密码连接
+   --secret 用户UUID --base64 用户密码(ceph.client.admin.keyring文件中)
+  6.修改虚拟机xml配置文件
+  vim /etc/libvirt/qemu/xxx.xml	//不推荐此方法
+  virsh edit 虚拟机名	//推荐此方法修改
+  <disk type='network' ...>	//磁盘为网络类型
+    <driver ... type='raw' />	//新建空磁盘
+    <auth username='admin'>
+    <secret type='ceph' uuid='xxx' />
+    </auth>
+二、Ceph文件系统(一个ceph只能做一个文件系统)
+  需要软件包ceph-mon ceph-osd ceph-mds
+  ceph osd create 数据池子
+  ceph osd create 描述信息的池子
+  ceph fs create 文件系统
+  mount -t ceph ip:端口:/ /挂载目录 
+  -o name=admin,secret=密码(ceph.client.admin.keyring)
 
 
 
