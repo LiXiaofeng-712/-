@@ -1,0 +1,887 @@
+Day1
+
+ 扇区  512 字节
+一块硬盘的“艺术”之旅
+• 识别硬盘 => 分区规划 => 格式化 => 挂载使用
+   毛坯楼层 => 打隔断 => 装修 => 入驻
+
+ 识别硬盘,由系统自动完成
+ 格式化:赋予空间存储数据的规则(文件系统)
+	列出所有识别的硬盘设备:lsblk
+
+分区的规划  
+    MBR分区模式
+          三种分区类型: 主分区   扩展分区   逻辑分区
+          3个主分区, 一个扩展分区, N个逻辑分区
+          可以存储数据的分区: 主分区  逻辑分区
+          最多划分4主分区
+          此模式支持最大空间  2.2T
+
+开机自动挂载
+• 配置文件 /etc/fstab 的记录格式
+ – 设备路径      挂载点       类型      参数         备份标记   检测顺序
+
+总结:
+1.识别硬盘   lsblk
+2.进行分区   fdisk
+3.刷新所有分区   partprobe
+4.进行格式化    mkfs.ext4  mkfs.xfs  blkid(查看文件系统)
+5.挂载使用  mount  ---> df -h (查看是否挂载成功)
+6.书写配置文件/etc/fstab   ---> mount -a(测试)
+
+上课笔记供参考：
+
+1.识别硬盘
+2.分区
+	分区：fdisk 路径
+	查看：lsblk(查看分区信息)
+	刷新所有分区表：partprobe
+3.格式化
+	格式化：mkfs.类型（ext4,xfs） 路径
+	查看：blkid 路径（查看格式化文件类型）
+4.挂载
+	挂载：mount
+	查看：df -h（查看挂载信息）
+5.开机自动挂载
+	配置文件/etc/fstab
+	格式：路径  挂载路径  类型  参数  备份标记   检测顺序
+	自动检测挂载：mount -a 
+
+
+6.综合分区
+	MBR分区：3个主分区，一个扩展分区，N个逻辑分区fdisk /dev/vdc
+
+LVM逻辑卷   
+   作用: 
+      1.可以整合分散的空间(分区或整个硬盘)
+      2.空间可以扩大
+     将众多的物理卷(PV)组建成卷组(VG),再从卷组中划分逻辑卷(LV)
+      砖------>大房子------>打隔断------->装修------->入住
+
+successfully 成功
+
+逻辑卷的扩展：支持线上工作，即不影响数据等
+
+	逻辑卷的空间来源与卷组，只能找创建它的卷组
+1.卷组空间足够
+	查看卷组空间：vgs
+	1>扩展逻辑卷空间
+		lvextend -L 需扩展的大小/+多大  路径
+	2>扩展系统文件空间
+		ext4文件系统刷新命令：resize2fs 路径
+		xfs文件系统刷新命令：xfs_growfs 路径
+2.卷组空间不足
+	1>扩展卷组fdisk /dev/vdc
+		vgextend 卷组名 硬盘路径
+	2>扩展逻辑卷空间
+		lvextend -L 需扩展的大小/+多大  路径
+	3>扩展系统文件空间
+		ext4文件系统刷新命令：resize2fs 路径
+		xfs文件系统刷新命令：xfs_growfs 路径
+
+
+了解：逻辑卷也可减小，有数据丢失的风险，不可控
+	ext4文件系统支持减小
+	xfs文件系统不支持减小
+
+硬盘划分最小空间单位：默认512字节
+卷组划分最小空间单位：PE 默认4M（4的倍数）
+	新增的卷组修改PE大小：vgcreate -s PE大小 -n 卷组名 硬盘路径
+	已存在的卷组修改PE大小：vgchange -s PE大小 卷组名
+	创建逻辑卷的时候指定PE个数：lvcreate -l PE个数 -n 逻辑卷名 卷组名
+	
+Day02
+
+Shell脚本
+
+   什么是脚本：可以执行的一个文本文件，可以实现某种功能
+
+规范Shell脚本的一般组成      
+• #! 环境声明，下面的代码用哪一个程序来解释
+• # 注释文本
+• 可执行代码
+
+重定向输出
+
+    > :只收集前面命令的正确信息
+    2>:只收集前面命令的错误信息
+    &>：收集前面命令的错误信息与正确信息
+    >&2:将输出信息显示为错误信息
+
+	黑洞设备：/dev/null
+
+为了增加脚本灵活，适应多变的环境，所以使用变量
+  变量：容器    以不变的名称，存放可以变化的值 
+
+    变量名=储存的值      
+   使用变量储存的值 $变量名
+
+什么是变量
+• 以不变的名称存放的可能会变化的值
+– 变量名=变量值
+– 方便以固定名称重复使用某个值
+– 提高对任务需求、运行环境变化的适应能力
+
+
+– 变量名只能由字母/数字/下划线组成,区分大小写
+– 变量名不能以数字开头,不要使用关键字和特殊字符
+
+• 基本格式
+– 引用变量值:$变量名
+– 查看变量值:echo $变量名、echo ${变量名}
+
+ 降低脚本的使用难度，可以产生交互
+  read  
+  -p '屏幕输出信息'
+     作用：1. 可以产生交互   2.记录用户在键盘上的输入
+              3.将用户在键盘上的输入内容赋值给变量储存
+	  单引 '  ' ：取消所有特殊字符含义
+	$( )或 反撇号`  `:将命令的输出，作为参数参与下一个命令执行
+       %F    完整日期格式，等价于  年-月-日
+
+
+
+环境变量  变量名一般都大写,用来设置用户/系统环境
+              系统定义赋值完成，用户直接使用即可
+
+    USER=永远储存当前登陆的用户名
+
+位置变量  bash内置,存储执行脚本时提供的命令行参数(非交互)
+              系统定义赋值完成，用户直接使用即可
+
+预定义变量   bash内置,可直接调用的特殊值,不能直接修改
+                  系统定义赋值完成，用户直接使用即可
+
+	$#  已加载的位置变量的个数
+	$*  所有位置变量的值
+	$?  程序退出后的状态值,0表示正常,其他值异常
+
+条件测试  – [  测试表达式  ]   条件表达式每一部分都要有空格
+
+• 检查文件状态
+	-e:文档存在为真
+	-d:文档存在,且必须为目录才为真
+	-f:文档存在,且必须为文件才为真
+	-r:文档存在,且必须对其有读取权限才为真
+	-w:文档存在,且必须对其有写入权限才为真
+	-x:文档存在,且必须对其有执行权限才为真
+
+• 比较整数大小    
+   -gt:大于
+   -ge:大于等于
+   -eq:等于
+   -ne:不等于
+   -lt:小于
+   -le:小于等于
+
+• 字符串比对
+     ==:两个字符串一致为真      
+     !=:两个字符串不一致为真
+
+
+if双分支处理
+
+	if [条件测试];then
+	   命令序列xx
+	else
+	   命令序列yy
+	fi
+
+if多分支处理
+
+	if [条件测试1];then
+	  命令序列xx
+          命令序列bb
+	elif [条件测试2];then
+	  命令序列yy
+     elif [条件测试3];then
+	  命令序列aa
+          ......
+	else
+	  命令序列zz
+	fi
+
+for循环处理
+• 遍历/列表式循环
+– 根据变量的不同取值,重复执行xx处理
+
+	for 变量名   in  值列表
+	do
+	    重复执行的代码
+	done
+
+造数机制: {起始值..结束值}
+             {1..10}:  1到10 所有的数字         
+             {20..38}:  20到38所有的数字
+
+判断输入参数是否为空：$#,(-z$n)
+
+切换为disabled需重起
+	查看当前模式：getenforce
+	临时切换：setenforce 0（permissive模式）/1（enforcing模式）
+	永久切换：/etc/selinux/config
+
+系统安全保护
+
+SELinux概述
+• Security-Enhanced Linux
+– 美国NSA国家安全局主导开发,一套增强Linux系统安
+全的强制访问控制体系
+
+– 集成到Linux内核(2.6及以上)中运行
+– RHEL7基于SELinux体系针对用户、进程、目录和文件
+提供了预设的保护策略,以及管理工具
+
+
+• SELinux的运行模式
+– enforcing(强制)、permissive(宽松)
+– disabled(彻底禁用)
+
+ 任何模式变成disabled都要经历重起系统
+
+• 切换运行模式
+– 临时切换:setenforce 1|0
+– 固定配置:/etc/selinux/config 文件
+
+配置用户环境
+
+• 影响指定用户的 bash 解释环境
+– ~/.bashrc,每次开启 bash 终端时生效
+
+• 影响所有用户的 bash 解释环境
+– /etc/bashrc,每次开启 bash 终端时生效
+
+搭建web服务（访问网页）
+	1.安装httpd软件包
+	  常用软件包：httpd,Nginx(tengine升级版),Tomcat
+	  apache(开发软件的一个组织)
+	2.重起httpd服务
+	  systemctl restart httpd
+	  systemctl enable httpd(设为开机启动)
+	3.书写一个页面文件
+	  默认存放网页文件的路径：/var/www/html
+	  默认网页文件的名字：index.html
+	4.本机测试
+		html语言：
+		<h1>字体大小
+		<font color=颜色>字体颜色
+		<marquee>字体已滚动形式出现
+
+搭建FTP服务（传输文件）
+	1.安装vsftpd服务软件
+	2.重起vsftpd服务
+	3.本机测试
+  	默认FTP共享数据的路径：/var/ftp
+
+
+防火墙的应用
+	作用：隔离  过滤
+  硬件防火墙：一般保护的是一个网络所有主机
+  软件防火墙：一般保护本机
+
+RHEL7的防火墙体系
+  系统服务：firewalld
+  管理工具：firewall-cmd(命令)  firewall-config(图形)
+  
+  默认规则：允许出站，过滤入站
+
+预设安全区域
+  public:仅允许访问本机的sshd,dhcp,ping少数几个服务
+  trusted:允许任何访问
+  block:拒绝任何来访请求（明确拒绝）
+  drop:丢弃任何来访的数据包（非明确拒绝，直接丢弃,节省资源）
+
+数据包的内容：源IP地址，目标IP地址，数据,目标端口号
+防火墙判断的机制：
+  1.查看客户端数据包中源IP地址，查看所有区域哪个有该源IP地址的策略，则进入此区域
+  2.进入默认区域（public）
+
+  查看默认模式：firewall-cmd --get-default-zone
+  修改默认模式：firewall-cmd --set-default-zone=(public,trusted,block,drop)
+  查看各区域协议：firewall-cmd --zone=public --list-all
+  区域添加协议:firewall-cmd --zone=public --add-service=需添加的协议
+  为防火墙添加永久协议:firewall-cmd --permanent --zone=public --add-service=需添加的协议
+  删除添加的永久协议：firewall-cmd --permanent --zone=public --remove-service=需删除的协议
+  添加源ip到区域：firewall-cmd --zone=public --add-source=ip地址
+  刷新防火墙信息：firewall-cmd --reload
+
+在区域中添加允许的协议
+  扩展  互联网常见的协议
+	http:超文本传输协议			默认端口：80
+	https:安全超文本传输协议     		  443
+	ftp：文件传输协议			 	  21
+ 	dns：域名解析协议				  53
+	telnet：远程管理协议				  23
+	tftp：简单文件传输协议			  69
+	smtp：邮件协议（用户发邮件）			  25	
+	pop3：邮件协议（用户收邮件）			  110
+	snmp：网络管理协议 				  161	
+
+实现本机的端口映射(端口转发)
+• 本地应用的端口重定向(端口1 --> 端口2)
+  – 从客户机访问 端口1 的请求,自动映射到本机 端口2
+# firewall-cmd --permanent  --zone=public --add-service=http
+
+# firewall-cmd --reload 
+
+# firewall-cmd --permanent --zone=public 
+--add-forward-port=port=5423:proto=tcp:toport=80
+
+# firewall-cmd --reload 
+
+# firewall-cmd --zone=public --list-all
+
+
+Day04
+
+Samba服务基础:实现跨平台的共享(Windows与Linux)
+   
+• Samba 软件项目
+  – 用途:为客户机提供共享使用的文件夹
+  – 协议:SMB(TCP 139)、CIFS(TCP 445)
+  • 所需软件包:samba
+  • 系统服务:smb
+
+• Samba用户 —— 专用来访问共享文件夹的用户
+– 采用独立设置的密码  
+– 但需要提前建立同名的系统用户  
+• 使用 pdbedit 管理工具
+– 添加用户:pdbedit -a 用户名
+– 查询用户:pdbedit -L [用户名]
+– 删除用户:pdbedit -x 用户名
+
+• 修改 /etc/samba/smb.conf
+[自定共享名]
+path = 文件夹绝对路径
+; public = no|yes      //默认no
+; browseable = yes|no //默认yes
+; read only = yes|no   //默认yes
+; write list = 用户1 .. .. //默认无
+; valid users = 用户1 .. .. //默认任何用户
+; hosts allow = 客户机地址 .. ..
+; hosts deny = 客户机地址 .. ..
+
+一  环境配置               
+虚拟机Server0:
+# firewall-cmd --set-default-zone=trusted
+ 
+虚拟机Desktop0:
+# firewall-cmd --set-default-zone=trusted 
+
+二 搭建基本的Samba服务
+虚拟机Server0:
+1.安装samba软件包:samba
+2.创建Samba的共享帐号
+  pdbedit -L          #查看所有Samba的共享帐号
+  pdbedit -a 用户名     #将用户添加为共享帐号
+  pdbedit -x 用户名     #删除共享帐号
+3.修改配置文件/etc/samba/smb.conf
+  1)创建目录
+  [root@server0 ~]# mkdir  /common
+[root@server0 ~]# echo  123  >  /common/1.txt
+[root@server0 ~]# ls  /common/
+
+  2)此服务器必须是 STAFF 工作组的一个成员
+     发布目录 /common,共享名为 common
+[root@server0 ~]# vim  /etc/samba/smb.conf
+  末行模式  输入 :set  nu  开启行号
+
+    89   workgroup = STAFF
+
+  命令模式  按 G(大写) 到全文最后
+	321  [common]           #共享名
+	322  path = /common     #共享实际路径
+4.重起smb服务
+[root@server0 ~]# systemctl restart smb
+[root@server0 ~]# systemctl enable smb
+
+客户端虚拟机desktop0: 
+
+1.安装客户端软件包samba-client
+[root@desktop0 ~]# yum -y install samba-client
+
+• 列出共享资源
+– smbclient -L 服务器地址
+• 连接到共享文件夹
+– smbclient -U 用户名 //服务器地址/共享名
+
+虚拟机desktop0:
+# smbclient  -L   172.25.0.11
+Enter root's password:       #直接敲回车
+Anonymous login successful
+Domain=[STAFF] OS=[Unix] Server=[Samba 4.1.1]
+
+	Sharename       Type      Comment
+	---------                      ----                 -------
+	common          Disk     
+
+# smbclient -U harry  //172.25.0.11/common
+Enter harry's password:      #输入harry的密码
+Domain=[STAFF] OS=[Unix] Server=[Samba 4.1.1]
+smb: \> 
+
+客户端:更加科学方便的访问方式  
+  mount挂载:本地目录作为Samba服务的访问点
+1.安装cifs-utils软件包,支持cifs文件系统的软件包
+2.挂载访问
+3.开机自动挂载/etc/fstab
+  _netdev:网络设备
+                   指明本设备需要具备所有网络参数后,在进行挂载
+  格式：//172.25.0.11/common  /mnt/smb   cifs defaults,user=harry,pass=123,_netdev   0  0
+
+总结:
+搭建Samba服务:
+  1.修改防火墙策略
+  2.安装软件包samba
+  3.创建Samba共享帐号   pdbedit
+  4.创建共享目录,修改配置文件发布共享 
+  5.重起smb服务
+  6.修改SELinux功能的开关
+
+客户端:
+   1.修改防火墙策略
+   2.安装软件包cifs-utils
+   3.利用mount挂载的方式
+   4.实现开机自动挂载
+
+客户端:
+   1.修改防火墙策略
+   2.安装软件包samba-clinet
+   3.访问
+
+总结:读写Samba共享
+	搭建Samba服务:
+	  1.修改防火墙策略
+	  2.安装软件包samba
+	  3.创建Samba共享帐号   pdbedit
+	  4.创建共享目录,修改配置文件发布共享,添加可写用户
+	  5.重起smb服务
+	  6.修改SELinux功能的开关(rw读写功能)
+	  7.赋予本地目录(可写用户身份)读写执行的权限
+
+	客户端:
+	   1.修改防火墙策略
+	   2.安装软件包cifs-utils
+	   3.利用mount挂载的方式
+	   4.实现开机自动挂载（挂载路径上为共享名，不是共享目录）
+
+客户端访问服务端:
+  1.防火墙策略
+  2.服务端的服务本身访问控制
+  3.安全增强版 SELinux
+  4.本地目录的权限
+
+虚拟机Server0:只读NFS共享的实现
+1.安装软件包
+2.创建共享目录发布共享
+• 修改 /etc/exports
+– 文件夹路径    客户机地址(权限) 客户机地址(权限) .. ..
+3.重起nfs-server服务
+
+客户端:虚拟机Desktop0
+  • 查看NFS资源
+  – showmount -e [服务器地址]
+  • 挂载NFS共享目录
+  – mount 服务器地址:目录路径   本地挂载点
+
+multiuser机制
+ 作用:客户端挂载时采用权限较小的用户挂载,当客户端有一个普通用户需要较大的权限,可以临时切换Samba共享帐号的身份
+
+• SMB客户端的 multiuser 挂载技术
+– 管理员只需要作一次挂载
+– 客户端在访问挂载点时,若需要不同权限,可以临时
+切换为新的共享用户(无需重新挂载)
+
+• mount.cifs 的挂载参数
+– multiuser,提供对客户端多个用户身份的区分支持
+– sec=ntlmssp,提供NT局域网管理安全支持
+
+搭建读写的Samba共享
+	-发布共享/public,共享名为haxi
+	-共享用户chihiro对共享具备读写权限
+
+虚拟机server:发布共享/public,共享名为haxi
+
+虚拟机desktop:将共享,开机自动挂载到/mnt/samba
+
+
+Day05
+
+iSCSI网络磁盘(共享分区或整个磁盘)  默认端口:3260
+• Internet SCSI,网际SCSI接口
+– 一种基于C/S架构的虚拟磁盘技术
+– 服务器提供磁盘空间,客户机连接并当成本地磁盘使用
+
+• backstore,后端存储(大冰箱)  /dev/vdb1
+– 对应到服务端提供实际存储空间的设备,需要起一个管理名称
+
+• target,磁盘组(木质箱子)
+– 是客户端的访问目标,作为一个框架,由多个lun组成
+
+• lun,逻辑单元(将大冰箱放入木质箱子)
+– 每一个lun需要关联到某一个后端存储设备,在客户端
+会视为一块虚拟硬盘
+
+使用targetcli建立配置
+• ISCSI Qualified Name 名称规范
+– iqn.yyyy-mm.倒序域名:自定义标识
+–  用来识别 target 磁盘组, 也用来识别客户机身份
+
+总结:
+服务端:
+  1.防火墙默认区域设置为trusted
+  2.安装软件包targetcli
+      A:建立后端存储
+      B:建立target磁盘组
+      C:关联lun
+      D:设置acl访问控制,客户端声称的名字
+      E:开启本机的IP地址及端口
+  3.重起target服务
+
+客户端:
+  1.防火墙默认区域设置为trusted
+  2.安装软件包iscsi-initiator-utils
+  3.修改文件/etc/iscsi/initiatorname.iscsi客户端声称的名字
+  4.重起iscsid服务刷新客户端iqn标识
+  5.书写客户端发现命令,参照man iscsiadm
+  6.重起iscsi服务,加载共享存储  最终利用lsblk查看新磁盘
+
+数据库管理
+
+数据库:存放数据的仓库
+
+– 社区开源版 MariaDB  默认端口:3306     
+
+• RHEL7 中的 MariaDB 相关包
+– mariadb-server:提供服务端有关的系统程序
+– mariadb:提供客户端及管理工具
+
+ mariadb数据库中,会有很多的库,在每一个库中会有很多的表格
+
+
+ 禁止监听,只服务于本机,MariaDB主配文件为/etc/my.cnf
+ 导入/恢复到数据库
+– mysql [-u用户名] [-p[密码]] 数据库名 < 备份文件.sql
+
+
+数据库：存放数据的仓库
+
+社区开源版：MariaDB		默认端口：3306
+
+一、安装数据库mariadb-server
+
+二、数据库基本操作
+	MySQL进入数据库：show databases;(查看库)
+			   create database 库名（创建新库）
+			   drop database 库名 （删除库）
+			   use 库名（切换库）
+			   show tables(查看库中表格)
+	
+三、为数据库管理员设置密码
+	数据库管理员root：MariaDB数据库信息存放在MySQL库-->user表中
+	系统管理员root：账户信息放在/etc/passwd
+	新用户设置密码：mysqladmin -u root password '123'
+	修改密码：mysqladmin -u root -p（此处没有空格）旧密码 password '新密码'
+	进入数据库：mysql -u root -p123（非交互）
+		    mysql -u root -p（交互）
+	导入/恢复库：mysql -u root -p456 库名 < users.sql
+
+	表字段（列）	表记录（行）	
+	desc（查表结构）
+	insert（增）	delete（删）	update（改）	select（查）
+	select 表字段 from 表名;	
+	select 表字段 from 库名.表名;
+
+数据库的授权：与本地用户没关系，不需创建本地用户
+	grant 权限（all，增删改查） on 数据库名.表名 to 用户名@客户机地址（localhost本地） identified by ‘密码’
+
+
+Day06
+
+HTTP服务基础  
+
+搭建基本Web服务
+虚拟机server0
+1.安装软件包httpd
+2.书写一个页面文件
+ echo '<h1>NSD1809 Web' > /var/www/html/index.html
+3.重起服务
+# systemctl restart httpd
+# systemctl enable httpd
+
+4.虚拟机desktop0 访问测试: firefox  172.25.0.11
+
+Web通信基本概念
+• 基于 B/S (Browser/Server)架构的网页服务
+– 服务端提供网页
+– 浏览器下载并显示网页
+
+• Hyper Text Markup Language(HTML),超文本标记语言
+• Hyper Text Transfer Protocol(HTTP),超文本传输协议
+
+• 软件包:httpd
+• 系统服务:httpd
+• 提供的默认配置
+– Listen:监听地址:端口(80)
+– ServerName:本站点注册的DNS名称(空缺)
+– DocumentRoot:网页根目录(/var/www/html)	#指定网页文件存放路径
+– DirectoryIndex:起始页/首页文件名(index.html)  
+
+主配置文件:/etc/httpd/conf/httpd.conf
+当 客户端  172.25.0.11:80  服务端 httpd--->DocmentRoot
+
+DocumentRoot "/var/www/myweb" 
+
+网络路径:firefox  server0.example.com
+实际路径:/var/www/myweb
+
+虚拟Web主机
+– 由同一台服务器提供多个不同的Web站点
+一旦使用虚拟web主机功能,所有的网站都必须用虚拟web主机实现
+
+• 区分方式
+– 基于域名的虚拟主机
+– 基于端口的虚拟主机
+– 基于IP地址的虚拟主机
+
+– 基于域名的虚拟主机
+
+ <VirtualHost  IP地址:端口>
+   ServerName  此站点的DNS名称
+   DocumentRoot  此站点的网页根目录
+ </VirtualHost>
+ <VirtualHost  *:80>         #所有IP地址开放80端口
+   ServerName    www0.example.com  #指定网站名称
+   DocumentRoot  /var/www/qq       #指定网页文件存放路径
+ </VirtualHost>
+
+• 配置文件路径
+– /etc/httpd/conf/httpd.conf  主配置文件
+– /etc/httpd/conf.d/*.conf    调用配置文件
+
+网页内容访问
+客户机地址限制
+
+• 使用 <Directory> 配置区段
+– 每个文件夹自动继承其父目录的访问权限
+– 除非针对子目录有明确设置
+<Directory  /var/www/html>
+	Require all denied|granted #拒绝所有 | 允许所有
+	Require ip 172.25.0.10   #仅允许172.25.0.10进行访问
+   </Directory>
+
+
+案例3:配置网页内容访问
+在 Web 网站 http://server0.example.com 的
+DocumentRoot 目录下创建一个名为 private 的子目录,要求如下:
+
+1.查看 server0.example.com 的DocumentRoot 目录
+2.创建目录,写入页面文件
+3.在虚拟机server与虚拟机desktop上 访问测试
+4.从 server0 上,任何人都可以浏览 private的内容,
+但是从其他系统不能访问这个目录的内容
+5.在虚拟机desktop0进行验证:
+
+案例4:使用自定Web根目录
+调整 Web 站点 http://server0.example.com 的网页
+目录,要求如下:
+1)新建目录 /webroot,作为此站点新的网页目录
+  # mkdir /webroot
+  # echo '<h1>wo shi webroot' > /webroot/index.html
+2)修改虚拟Web主机配置文件,指定新的网页目录
+ # vim /etc/httpd/conf.d/nsd01.conf 
+   <VirtualHost *:80>
+    ServerName  server0.example.com
+    DocumentRoot  /webroot
+   </VirtualHost>
+3)修改Web访问控制配置文件,允许所有人访问
+  # vim /etc/httpd/conf.d/nsd02.conf 
+   <Directory    "/webroot">
+     Require  all  granted      
+   </Directory>
+4)重起服务
+[root@server0 ~]# systemctl restart httpd
+
+5) 修改SELinux策略,安全上下文值(标签值)  
+[root@server0 ~]# ls  -Zd  /var/www/
+[root@server0 ~]# ls  -Zd  /webroot/
+
+• 方式1:参照标准目录,重设新目录的属性
+– chcon [-R] --reference=模板目录   新目录
+
+# chcon  -R --reference=/var/www/  /webroot
+
+[root@server0 ~]# ls  -Zd  /var/www/
+[root@server0 ~]# ls  -Zd  /webroot/ 
+
+ 客户端访问服务端:
+        1.防火墙
+        2.服务本身的访问控制
+        3.本地目录的权限
+        4.安全增强版 SELinux策略
+
+
+部署动态网站
+   LAMP (Linux Apache MySQL/MariaDB php/python) 
+   LNMP (Linux Nginx MySQL/MariaDB php/python) 
+
+静态网站的运行
+• 服务端的原始网页 = 浏览器访问到的网页
+– 由Web服务软件处理所有请求
+– 文本(txt/html)、图片(jpg/png)等静态资源
+
+动态网站的运行
+• 服务端的原始网页 ≠ 浏览器访问到的网页
+– 由Web服务软件接受请求,动态程序转后端模块处理
+– PHP网页、Python网页、JSP网页......
+
+虚拟机Server0:
+1.以webapp0.example.com部署Python页面
+2.用户方便的访问(页面跳转/页面的别名)
+  Alias   网络路径    本机实际路径
+3.安装mod_wsgi软件包,翻译Python页面代码
+4.修改配置文件,进行翻译Python页面代码
+WsgiScriptAlias  /  /var/www/baidu/webinfo.wsgi
+
+5.此虚拟主机侦听在端口8909
+Listen 8909           #配置httpd程序监听8909端口
+<VirtualHost *:8909>  #虚拟web主机监听8909
+6. SELinux非默认端口的开放
+# semanage port -a -t http_port_t     -p tcp 8909 
+   -a:添加    -t:类型     -p:协议
+7.验证
+
+默认端口访问优先级最高,默认端口不匹配,显示第一个虚拟Web主机内容
+
+
+Day07
+
+安全的Web的构建   
+
+• Public Key Infrastructure,公钥基础设施
+– 公钥:主要用来加密数据
+– 私钥:主要用来解密数据(与相应的公钥匹配)
+– 数字证书:证明拥有者的合法性/权威性(单位名称、
+有效期、公钥、颁发机构及签名、......)
+– Certificate Authority,数字证书授权中心:负责证书
+的申请/审核/颁发/鉴定/撤销等管理工作
+
+1.部署网站证书
+	cd /etc/pki/tls/certs   默认放网站证书路径
+2.部署根证书
+	/etc/pki/tls/certs
+3.部署私钥
+	cd /etc/pki/tls/private
+4.安装软件包
+	httpd
+	mod_ssl(支持加密通信的软件):在/etc/httpd/conf.d/下生成ssl.conf文件，需重起httpd服务去识别这个文件
+5.修改配置文件/etc/httpd/conf.d/ssl.conf
+  创建一个网页
+  进入配置文件修改：   DocumentRoot "/var/www/html"
+			ServerName www0.example.com:443
+			SSLCertificateFile（指定网站证书）
+			SSLCertificateKeyFile（指定私钥）
+			SSLCACertificateFile(根证书)
+6.重起httpd服务
+7.验证
+
+基础邮件服务
+
+• 电子邮件服务器的基本功能
+– 为用户提供电子邮箱存储空间(用户名@邮件域名)
+– 处理用户发出的邮件 —— 传递给收件服务器
+– 处理用户收到的邮件 —— 投递到邮箱
+
+    SMTP:用户发出的邮件的协议  默认端口  25
+    pop3:用户收到的邮件的协议  默认端口 110
+
+1.搭建邮件服务，安装postfix软件包
+2.修改配置文件/etc/postfix/main.cf
+	myorigin = server0.example.com    默认补全后缀
+	inet_interfaces = all		   允许本机所有接口使用邮件服务
+	mydestination = server0.example.com	判断目标是否为本域邮件
+3.重起服务
+
+邮件测试：
+	1.建立邮箱帐号
+	2.收发邮件
+	交互式发送命令：mail -s '主题' -r 发件人 收件人
+	回车后判断结束机制是：单独一行已.结尾
+	非交互式：echo 内容 | mail -s 主题 -r 发件人 收件人
+	接受：mail -u 收件人
+	& q     #退出
+
+•使用fdisk操作适合  MBR分区模式,最大容量2.2TB
+            1GB=1000MB   (厂商)
+            1GiB=1024MiB   (计算机)
+
+•使用parted操作适合 GPT分区模式,支持128主分区,最大容量18EB
+             1EB=1000PB
+             1PB=1000TB
+             1TB=1000GB      
+GPT分区
+	使用parted操作，支持128个主分区，最大容量18EB（1EB=1000PB，1PB=1000TB）
+	mktable gpt  重新规划分区模式为gpt
+	mkpart  分区
+	print   查看
+	unit GB 以GB为单位
+	q	  退出
+
+什么是交换空间
+• 相当于虚拟内存
+– 当物理内存不够用时,使用磁盘空间来模拟内存
+– 在一定程度上缓解内存不足的问题
+– 交换分区:以空闲分区充当的交换空间
+
+1.格式化交换文件系统
+	mkswap 磁盘路径
+2.启用交换分区
+	swapon 磁盘路径	
+	swapon -s  查看当前组建为交换空间的成员
+	优先级，权限大的先使用，留意这里用负数表示
+3.停用交换分区磁盘
+	swapoff 磁盘路径    
+4.开机自动启用交换分区
+	/etc/fstab
+	访问点：swap，其他参数一样
+	swapon -a
+
+MariaDB数据库
+1.装包mariadb-server
+2.重起mariadb
+3.设置数据库管理员密码
+4.建立nsd库
+5.导入数据
+6.查询密码为***的人的名字
+有条件的查询（单表查询）：
+	select * from 表格名 where password='***'
+				 	name='XXX'...
+多表格查询：
+	select * from 表1，表2... where 条件1 and 条件2...  
+	条件表示：表1.name之类
+	count（*）统计满足条件的总数
+在表中插入数据：
+	insert 表名 values（‘添加内容’。。。）
+
+禁止root用户空密码登陆数据库
+删除：delete from 表 where 条件。。。
+刷新user表：flush privileges
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

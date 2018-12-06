@@ -1,0 +1,677 @@
+
+Day1
+
+• TCP/IP是最广泛支持的通信协议集合
+ – 包括大量Internet应用中的标准协议
+ – 支持跨网络架构、跨操作系统平台的通信
+
+• 主机与主机之间通信的三个要素
+  – IP地址(IP address)
+   – 子网掩码(subnet mask)
+  – IP路由(IP router)
+
+IP地址(IP address)
+     用来唯一标识一个计算机
+
+• 地址组成(点分十进制):
+    – 一共32个二进制数
+    – 表示为4个十进制数,以 . 隔开
+
+用于一般计算机网络
+– A类:1 ~ 127         网+主+主+主
+– B类:128 ~ 191     网+网+主+主
+– C类:192 ~ 223     网+网+网+主
+
+• 组播及科研专用
+– D类:224 ~ 239     组播
+– E类:240 ~ 254     科研
+
+子网掩码：为计算机区分IP地址的网络位与主机位
+                 利用二进制的1代表网络位
+                 利用二进制的0代表主机位
+
+DNS服务器：将用户在浏览器输入的域名，解析为对应的IP地址
+
+默认windows防火墙，禁止ping进行通信
+
+网关设备：一般为路由器
+
+网关地址：一个网络到另一个网络的关口（作用解决不同网络通信）
+
+
+Day2
+
+  蓝色(d)：目录
+  黑色(f)：文本文件
+  绿色：可以运行的程序
+  青色(l)：快捷方式 
+
+Linux是一种操作系统!!  
+ 
+  操作系统：一堆软件的集合，让计算机硬件正常运行
+
+• UNIX诞生, 1970-1-1
+
+• Linux之父,Linus Torwalds
+
+ 一套公开发布的完整Linux系统
+	– Linux内核 + 各种应用软件
+	   内核=让计算机硬件正常的启动
+
+• 发行版的名称/版本由发行方决定
+– Red Hat Enterprise Linux 5/6/7
+– Suse Linux Enterprise 12
+– Debian Linux 7.8
+– Ubuntu Linux 14.10/15.04
+
+格式化：赋予空间存储数据的规则（文件系统）
+   常见的文件系统：
+    Windows：   NTFS    FAT
+    Linux：   ext4（RHEL6）  xfs (RHEL7) 
+              SWAP,交换空间(虚拟内存)
+                                     缓解内存不足
+根目录(/)：Linux系统所有数据都存放在此目录下
+           Linux系统的起点
+
+    /dev：存放设备（键盘  鼠标  光驱   硬盘）相关的数据
+	
+  hd,表示IDE设备
+  sd,表示SCSI设备
+  vd,表示虚拟化设备
+   /dev/sda3表示的含义：SCSI设备第一块第三个分区 
+
+ 命令行提示标识的含义
+– [当前用户@主机名 当前所在的位置]$
+– 若当前用户是root,则最后一个字符为 #
+
+• 列出内核版本
+[root@room9pc01 ~]# uname -r
+
+• 列出CPU处理器信息
+[root@room9pc01 ~]# lscpu
+
+• 检查内存大小、空闲情况
+[root@room9pc01 ~]# cat /proc/meminfo
+MemTotal:       16166612 kB
+
+查看及切换目录
+• pwd — Print Working Directory
+– 用途:查看当前所在的位置
+
+• cd — Change Directory
+– 用途:切换工作目录
+– 格式:cd  [目标文件夹位置]
+/root：管理员的家目录
+   /home:存放所有普通用户家目录的地方  
+
+    ～：表示用户的家目录
+  ~user表示用户user的家目录
+
+• ls — List
+– 格式:ls [选项]... [目录或文件名]...
+• 常用命令选项
+ – -l:以长格式显示
+ – -A:包括名称以 . 开头的隐藏文档
+ – -d:显示目录本身(而不是内容)的属性
+ – -h:提供易读的容量单位(K、M等)
+
+• mkdir 创建目录
+• mkdir — Make Directory
+– 格式:mkdir [-p] [/路径/]目录名...
+   -R：递归
+
+• touch命令
+– 用途:新建空文件
+– 格式:touch 文件名
+
+ less分屏阅读工具
+• 格式:less [选项] 文件名...
+– 优势:支持前后翻页
+• 基本交互操作
+– 按 / 键向后查找(n、N切换)
+
+• head、tail 命令
+– 格式: head -n 数字 文件名
+      tail -n 数字 文件名
+
+mv 移动/重命名
+• mv — Move
+– 格式:mv  原文件...     目标路径
+   重命名：路径不变的移动 
+
+• rm — Remove
+  – 格式:rm [选项]...  文件或目录...
+• 常用命令选项
+ – -r、-f:递归删除(含目录)、强制删除
+
+cp 复制
+• cp — Copy
+– 格式:cp [选项]... 原文件...    目标路径
+• 常用命令选项
+– -r:递归,复制目录时必须有此选项
+  复制时重名文档
+  复制支持两个以上的参数，
+  永远把最后一个参数作为目标，其他参数全部作为源
+
+• grep工具
+– 用途:输出包含指定字符串的行
+– 格式:grep '查找字符串'      目标文件
+
+cat查看文本文件内容
+ ..(两个点) 表示父目录,上一级目录
+ . 表示当前目录
+
+使用通配符
+• 针对不确定的文档名称,以特殊字符表示
+ – *:任意多个任意字符
+ – ?:单个字符
+• 针对不确定的文档名称,以特殊字符表示
+– [a-z]:多个字符或连续范围中的一个,若无则忽略
+– {a,min,xy}:多组不同的字符串,全匹配
+
+
+vim文本编辑器
+
+  命令模式    插入模式    末行模式
+ i，o
+                命-----------------》 插入模式(按Esc回到命令模式)
+                令
+                模
+                式 -----------------》末行模式(按Esc回到命令模式)
+                       :(英文)
+
+             末行模式   :wq  保存并退出
+               :q!  强制不保存退出
+
+Day3
+
+• 快捷键
+– Ctrl + l:清空整个屏幕
+– Ctrl + a:在命令行光标移动到行首
+
+– Ctrl + u:清空至行首
+– Ctrl + w:往回删除一个单词(以空格界定)
+
+• Linux命令
+ –  用来实现某一类功能的指令或程序
+  Linux大多数命令执行，都要找到相应的程序青色：快捷方式 
+ –  命令的执行依赖于解释器 (默认的解释器/bin/bash)
+• Linux命令的分类
+– 内部命令:属于解释器的一部分
+– 外部命令:解释器之外的其他程序
+
+-mount挂载操作:让目录成为设备的访问点
+注意事项：
+   1.卸载：当前路径不要是挂载点内
+   [root@A dvd]# umount /dvd/
+   umount: /dvd：目标忙。
+
+   2.挂载尽量自己创建目录进行挂载,会覆盖原文件内容
+
+
+/root：管理员的家目录
+   /home:存放所有普通用户家目录的地方  
+
+    ～：表示用户的家目录
+  ~user表示用户user的家目录
+
+-别名的定义：简化复杂的命令
+
+• 查看已设置的别名
+– alias  [别名名称]
+
+• 定义新的别名
+– alias  别名名称= '实际执行的命令行'
+
+• 取消已设置的别名
+– unalias  [别名名称]
+
+
+Day4
+
+LANG=en        #临时改变系统语言为英文
+
+配置网络参数的顺序:
+    1.配置主机名  
+    2.配置IP地址 子网掩码 网关地址  
+  3.DNS服务器地址
+
+为真机设置永久的别名
+[root@room9pc01 ~]# ls /root/.bashrc  #系统级配置文件
+
+传统的安装软件包的命令
+– rpm -q 软件名...
+– rpm -ivh 软件名-版本信息.rpm...
+– rpm -e 软件名...
+
+构建Yum仓库   自动解决依赖关系，安装软件
+ 服务：为客户端自动解决依赖关系，安装软件
+   虚拟机classroom
+   服务端：  1.众多的软件包 
+                  2.仓库的数据文件（仓库清单文件）
+                  3.搭建服务共享光盘所有内容
+   虚拟机server
+   客户端：书写一个配置文件，指定服务端位置
+   路径及名称：/etc/yum.repos.d/*.repo
+   错误的文件会影响正确文件
+  yum  repolist      #显示所有仓库信息
+  yum  install 软件名
+  yum clean  all  #清空Yum所有缓存
+  yum remove  软件名    #卸载
+
+  客户机.repo配置文件内容
+  [rhel7]         #仓库的标识，随意写不要出现空格
+  name=rhel7.0    #仓库的描述信息，随意写
+  baseurl=http://classroom.example.com/content/rhel7.0/x86_64/dvd/    #指定服务端位置
+  enabled=1       #是否启用本文件
+  gpgcheck=0      #是否检测软件包红帽签名
+
+• 快速建立repo配置文件
+– yum-config-manager --add-repo 软件仓库地址
+  echo 'gpgcheck=0' >> /etc/yum.repos.d/*.repo
+
+配置网络参数
+一 配置永久主机名
+[root@server0 ~]# vim /etc/hostname
+
+二  配置永久的  IP地址    子网掩码      网关地址
+
+ 网卡配置文件:/etc/sysconfig/network-scripts/ifcfg-eth0
+
+方法一: 命令行指令,交互式配置
+  nmtui 修改IP地址为172.25.0.120/24 网关地址 172.25.0.254
+
+      1. Edit a connection（回车）#编辑连接
+      2. System eth0（回车）          #选择网卡
+      3. IPv4 CONFIGURATION   <Manual>  #手工配置IP
+            4.   选择  <Show> ------>书写IP地址
+      Addresses 172.25.0.120/24 <Remove>  
+                 
+      Gateway 172.25.0.254      
+    
+      5. Require IPv4 addressing for this connection
+                 #利用IPv4进行激活 
+
+      6. Automatically connect
+                 #每次开机自动激活配置  
+  激活配置
+[root@A ~]# nmcli  connection  up  'System eth0'
+
+方法二: 命令配置IP地址,非交互式 
+
+ 1.查看识别的网卡名称      
+[root@server0 ~]# nmcli connection show
+名称        
+System eth0   
+
+2.配置IP地址  子网掩码   网关地址    
+# nmcli  connection  modify  'System eth0' 
+  ipv4.method  manual           
+  ipv4.addresses  '172.25.0.110/24  172.25.0.254'   
+  connection.autoconnect  yes
+
+  nmcli  connection   修改    
+  ipv4.方法      手工配置
+  ipv4.地址      'IP地址/子网掩码     网关地址'  
+    每次开机自动启用配置
+
+3.激活配置
+# nmcli  connection  up  'System eth0'
+
+查看网关地址命令:
+[root@server0 ~]# route -n
+
+     Gateway        
+       172.25.0.254     
+
+三 指定本机DNS服务器地址
+      DNS服务器:将域名解析为IP地址
+      /etc/resolv.conf  #DNS服务器配置文件 
+
+
+
+Day5
+
+管理用户和组
+ 用户帐号：1.可以登陆操作系统    
+                     2.可以依据不同的身份，设置不同的权限
+
+     组：方便管理用户
+
+     唯一标识： UID   GID
+
+     管理员root的UID为0
+    
+     组帐号分类：一个用户至少属于一个组
+           基本组：由系统创建同名的组，由系统加入进去
+           附加组（从属组）：由管理员创建，由管理员加入进去
+
+添加用户
+
+• 使用 useradd 命令
+– useradd [选项]... 用户名
+• 常用命令选项
+– -u 用户id、-d 家目录路径、-G 附加组、-s 登录Shell  /sbin/nologin :禁止用户登陆操作系统
+
+usermod  #修改已存在用户的属性
+
+用户基本信息存放在 /etc/passwd 文件
+[root@server0 ~]# head -1 /etc/passwd
+  root:x:0:0:root:/root:/bin/bash
+
+用户名:密码占位符:UID:基本组GID:用户描述信息:家目录:解释器程序
+
+重定向操作:将前面命令的输出结果，写入到文本文件中
+  >：覆盖重定向
+  >>：追加重定向
+|  管道操作：
+        将前面命令的输出结果，交由后面命令再处理一遍，作为后面命令的参数
+
+设置登录密码
+用户密码信息存放在 /etc/shadow 文件
+
+• 使用 passwd 命令
+– passwd [用户名]（交互式）--根据电脑提示输入密码，有交互的动作
+– echo '密码' | passwd --stdin 用户名(非交互式)--直接更改密码，无交互的动作
+
+[root@A ~]# su - nsd01   #临时切换用户身份
+
+• 使用 usermod 命令
+– usermod [选项]... 用户名
+• 常用命令选项
+– -u 用户id、-d 家目录路径、-s 登录Shell
+– -G 附加组
+
+• 使用 userdel  命令
+– userdel   [-r]   用户名
+             -r: 连同家目录一并删除
+– userdel    用户名      #仅删除用户信息
+
+组基本信息存放在 /etc/group 文件
+[root@A ~]# grep stugrp /etc/group
+  stugrp:x:1507:
+    组名:组的密码占位符:组的GID:本组成员列表
+
+• 使用 groupadd 命令（新增组）
+– groupadd [-g 组ID] 组名
+  [-g 组ID]一般不用
+
+• 使用 gpasswd 命令
+– gpasswd -a  用户名   组名（将用户加入组）
+– gpasswd -d  用户名   组名（将用户移除组）
+
+删除组
+• 使用 groupdel 命令
+– groupdel   组名
+
+压缩与解压缩源文件均不会消失
+    归档及压缩： 1.减小占用的空间  2.将零散的文件归成一个压缩包
+
+Linux独有压缩格式及命令工具:
+       gzip---> .gz 
+       bzip2---> .bz2 
+       xz---> .xz 
+归档及压缩的格式：
+打包：
+ tar  选项    /路径/归档压缩之后的名字      被归档压缩源文档......
+
+解包：         
+ tar  选项    /路径/压缩包      -C     释放路径
+
+– -c:创建归档
+– -x:释放归档
+– -f:指定归档文件名称
+– -z、-j、-J:调用 .gz、.bz2、.xz 格式的工具进行处理
+– -t:查看tar包中文件清单
+– -C:指定释放的位置
+
+NTP网络时间协议
+• Network Time Protocol
+– NTP服务器为客户机提供标准时间
+– NTP客户机需要与NTP服务器保持沟通
+
+  NTP服务器:虚拟机classroom  
+
+  NTP客户机:虚拟机server
+    1.安装chrony软件,寻找NTP服务端进行沟通
+  [root@A ~]# yum -y install chrony
+  [root@A ~]# rpm -q chrony
+
+    2.修改配置文件/etc/chrony.conf
+  [root@A ~]# vim  /etc/chrony.conf  
+     以#开头的行代表注释
+     #server 0.rhel.pool.ntp.org iburst
+     #server 1.rhel.pool.ntp.org iburst
+     #server 2.rhel.pool.ntp.org iburst
+     server  classroom.example.com  iburst
+    
+     3.重起程序（重起服务）
+      daemon:超级守护程序
+   [root@A ~]# systemctl restart chronyd  #重起服务
+   [root@A ~]# systemctl enable chronyd   #设置开机自起
+
+     4.验证
+  [root@A ~]# date  #查看时间
+    2018年 10月 09日 星期二 17:44:38 CST
+  [root@A ~]# date -s  "年-月-日   时:分:秒"    #修改时间
+  [root@A ~]# date -s "2008-9-10  10:58:09"
+  [root@A ~]# date
+  [root@A ~]# systemctl restart chronyd
+  [root@A ~]# date
+  [root@A ~]# date
+  [root@A ~]# date
+
+周期性计划任务
+
+cron任务概述
+• 用途:按照设置的时间间隔为用户反复执行某一项固
+定的系统任务
+• 软件包:cronie、crontabs
+• 系统服务:crond
+• 日志文件:/var/log/crond
+
+如何编写crontab任务记录
+• 配置格式可参考 /etc/crontab 文件
+–   分   时   日   月   周     任务命令行(绝对路径)
+     30   8    *    *    *      执行的命令
+     1  23   *    *    1,3,5      执行的命令
+     1  23   *    *    1-5         执行的命令
+     1  23   1    *    1         满足其中一个即可
+
+	*:匹配范围内任意时间
+	,:分隔多个不连续的时间点
+	-:指定连续时间范围
+	/n:指定时间频率,每n ...
+
+• 使用 crontab 命令
+– 编辑:crontab -e  [-u 用户名]
+– 查看:crontab -l  [-u 用户名]
+– 清除:crontab -r  [-u 用户名]
+
+* * * * *   date  >>  /opt/time.txt
+
+
+Day6
+
+权限和归属
+
+基本权限的类别
+• 访问方式(权限)
+– 读取:允许查看内容-read  r
+– 写入:允许修改内容-write   w
+– 可执行:允许运行和切换-execute  x
+
+  对于文本文件：
+      读取 r ： cat  less  head tail 
+      写入 w ： vim 可以保存退出   重定向  >   >>
+      可执行 x : 学习Shell脚本
+
+常见提示：权限不足
+ Permission denied
+
+目录的 r 权限:能够 ls 浏览此目录内容
+
+目录的 w 权限:能够执行 rm/mv/cp/mkdir/touch/等更改目录内容的操作
+
+目录的 x 权限:能够 cd 切换到此目录
+
+
+– 所有者:拥有此文件/目录的用户-user  u
+– 所属组:拥有此文件/目录的组-group    g
+– 其他用户:除所有者、所属组以外的用户-other o
+
+
+查看权限
+• 使用 ls -l 命令
+– ls -ld 文件或目录...
+
+    以 - 开头:文本文件
+    以 d 开头:目录
+    以 l 开头:快捷方式
+
+设置基本权限
+• 使用 chmod 命令
+– chmod [-R] 归属关系+-=权限类别 文档...  
+
+        [-R]：递归设置权限
+
+Linux判断用户具备的权限           匹配及停止
+    1.看用户的所处角色                所有者>所属组>其他人
+    2.查看相应权限位置的权限
+
+设置文档归属
+• 使用 chown 命令
+– chown [-R] 属主   文档...
+– chown [-R] :属组   文档...
+– chown [-R] 属主:属组   文档...
+
+附加权限（特殊权限）
+
+Set GID
+• 附加在属组的 x 位上
+– 属组的权限标识会变为 s
+– 适用于目录,Set GID可以使目录下新增的文档自动设置与父目录相同的属组
+– 让目录下新增的子文档，自动继承父目录的所属组
+
+Set UID
+• 附加在属主的 x 位上
+– 属主的权限标识会变为 s
+– 适用于可执行文件,Set UID可以让使用者,具有可执行文件的,属主的身份及部分权限
+– 传递所有者身份
+
+Sticky Bit(粘滞位)
+• 附加在其他人的 x 位上              
+– 其他人的权限标识会变为 t
+– 适用于开放 w 权限的目录,可以阻止用户滥用 w 写入
+权限(禁止操作别人的文档)
+
+acl访问控制列表（ACL策略  ACL权限）
+
+• acl访问策略
+– 能够对个别用户、个别组设置独立的权限
+– 大多数挂载的EXT3/4、XFS文件系统默认已支持
+
+ACL策略设置黑名单
+[root@server0 /]# setfacl -m u:zhangsan:---  /nsd11
+[root@server0 /]# getfacl  /nsd11
+
+实现一个用户lisi可以读取文件redhat.txt内容，请问入如何设置权限，你有几种方法？
+
+       第一：利用其他人进行配置
+          chmod  o+r   redhat.txt
+
+       第二：利用所属组进行配置
+                 将lisi加入到redhat.txt所属组中
+          chmod  g+r redhat.txt
+
+       第三：利用所有者进行配置
+          chown  lisi  redhat.txt
+          chmod  u+r   redhat.txt
+
+       第四：利用ACL进行配置
+          setfacl -m u:lisi:r  redhat.txt
+
+• 使用 getfacl、setfacl 命令
+– getfacl 文档...
+– setfacl [-R] -m u:用户名:权限类别   文档...
+– setfacl [-R] -m g:组名:权限类别   文档...
+– setfacl [-R] -x u:用户名:    文档...    #删除指定的ACL策略
+– setfacl [-R] -b 文档...                      #删除所有的ACL策略
+
+使用LDAP认证
+     作用：实现网络用户认证，用户集中管理
+
+家目录漫游
+
+什么是NFS共享
+• Network File System,网络文件系统
+– 由NFS服务器将指定的文件夹共享给客户机
+– 客户机将此共享目录 mount 到本地目录,访问此共享
+资源就像访问本地目录一样方便
+– 类似于 EXT4、XFS等类型,只不过资源在网上
+
+查看共享文件命令：showmount -e 服务端IP地址
+
+扩展文件系统	ext4
+高级文件系统	xfs
+交换文件系统   swap
+
+
+Day7
+
+查找文本内容
+• 根据字符串模式提取文本行
+– grep [选项] '匹配模式'   文本文件...
+
+• 常用命令选项
+– -v,取反
+– -i,忽略大小写
+
+– ^word 以字符串word开头
+– word$ 以字符串word结尾
+–  ^$       匹配空行
+–  ^#        匹配以#号开头的行
+
+查找文件
+• 根据预设的条件递归查找对应的文件
+– find [目录] [条件1] [-a|-o(或者)] [条件2] ...
+
+– 常用条件表示:（+表示大于，-表示小于）
+  -type 类型(f文件、d目录、l快捷方式)
+  -name "文档名称"
+  -size +|-文件大小(k、M、G)  1默认不识别
+  -user 用户名
+  -iname  根据名称查找,忽略大小写
+  -group  根据所属组进行查找
+  -maxdepth  限制目录查找的深度(最大层数)
+  -mtime  根据文件修改时间(所有的时间,都是过去时间)
+
+• 使用find命令的 -exec 操作
+– find .. .. -exec 处理命令 {} \;
+– 优势:以 {} 代替每一个结果,逐个处理,遇 \; 结束
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
