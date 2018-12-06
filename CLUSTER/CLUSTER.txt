@@ -313,8 +313,14 @@ LVS分析
   -如果网站架构庞大,LVS0-DR配置比较繁琐
 HAProxy分析
 优点:
-  
+  -支持session、cookie功能
+  -可以通过url进行健康检查
+  -效率、负载均衡速度，高于Nginx，低于LVS
+  -HAProxy支持TCP，可以对MySQL进行负载均衡
+  -调度算法丰富
 缺点:
+  -正则弱于Nginx
+  -日志依赖于syslogd，不支持apache日志
 
 ###########################################################################
 Day04
@@ -356,7 +362,7 @@ Ceph组件:
     	ceph-deploy mon create-initial
     	实际运行：cp * /etc/ceph
     	yum -y install ceph-mon
-    	systemctl start ceph-mon@node1
+    	systemctl start ceph-mon@node1.server
      ceph -s 	//查看ceph状态
   3.创建OSD
     实际生产中，有一块磁盘为ssd固态盘（加速用），其他为磁盘
@@ -364,6 +370,8 @@ Ceph组件:
      	parted /dev/vdb mklabel gpt
      	parted /dev/vdb mkpart primary 1 50%
      	parted /dev/vdb mkpart primary 50% 100%
+   	chown ceph.ceph /dev/vdb1
+    	chown ceph.ceph /dev/vdb2
      修改2个分区所有者和所属组，设为永久/etc/udev/rules.d/*.rules
      查找判断条件udevadm info --query=property --path=/block/vdb/vdb1
     2)初始化清空磁盘数据
@@ -372,7 +380,7 @@ Ceph组件:
     3)创建OSD存储空间
      	ceph-deploy osd create node1:vdc:/dev/vdb1 node1:vdd:/dev/vdb2
 	实际运行:yum -y install ceph-osd
-		systemctl start ceph-osd@node1
+		systemctl start ceph-osd@0.server
      	创建osd存储盘，node1的vdc用vdb1做缓存盘...
     ceph-deploy purgedata	//清空所有数据
 
@@ -484,6 +492,22 @@ Day05
   4.ceph fs create 文件系统
   5.mount -t ceph ip:端口:/ /挂载目录 
   -o name=admin,secret=密码(ceph.client.admin.keyring)
+三、对象存储服务
+  1.前提：IP，主机名，yum源，ntf，免密，域名解析都要部署OK
+  2.部署RGW软件包和配置文件及密钥
+    在ceph部署服务器的特定目录下运行下列命令
+	ceph-deploy install --rgw 主机名
+ 	ceph-deploy admin 主机名
+  3.启动rgw服务
+	ceph-deploy rgw create 主机名
+  4.rgw服务器查看结果
+	ps aux | grep radosgw
+	systemctl status ceph-radosgw@\*
+
+
+PV:page view 点击量
+UV:user view 用户量
+
 
 
 
