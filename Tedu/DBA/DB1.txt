@@ -102,18 +102,18 @@ MySQL数据库
   大文本类型：text/blob
     -字符数大于65535存储时使用
   3.日期时间类型
-  日期时间，datetime
+  日期时间，datetime(未赋值时，默认NULL)
     -占用8个字节
     -范围：1000-01-01 00:00:00.000000
     	   ~9999-12-31 23:59:59.999999
-  日期时间，timestamp
+  日期时间，timestamp(未赋值时，默认当前系统时间)
     -占用4个字节
     -范围：1970-01-01 00:00:00.000000
     	   ~2038-01-19 03:14:07.999999
   日期，date
     -占用4个字节
     -范围：0001-01-01~9999-12-31
-  年份，year
+  年份，year(输入2位时,01-69默认2001-2069)
     -占用1个字节
     -范围：1901~2155
   时间，time
@@ -124,11 +124,94 @@ MySQL数据库
      -格式：enum(值1，值2，值N)
    从给定值集合中选择一个或多个值，set
      -格式：set(值1，值2，值N)
+  5.时间函数
+    now()	//获取系统当前日期和时间
+    date()	//获取指定时间中的日期
+    year()	//获取指定时间中的年份
+    mounth()	//获取指定时间中的月份
+    day()	//获取指定时间中的天
+    time()	//获取指定时间中的时刻
+    sleep(N)	//休眠N秒
+    curdate()	//获取当前系统日期
+    curtime()	//获取当前系统时刻 
+#########################################################################
+Day02
 
-
-
-
-
+一、约束条件(如何给子段赋值的)
+  -Null	//允许为空，默认设置
+  -NOT NULL	//不允许为空
+  -Key	//索引类型
+  -Default	//设置默认值，缼省为NULL
+  -Extra	//额外设置
+  -null空表示为空(没有数据)，""表示0个字符，小心区分
+二、修改表结构
+   alter table 表名 执行动作(add,modify,change,drop,rename)
+    -add 字段名 类型 约束条件 //添加新字段
+       可加after 字段名;	//添加到xx之后
+       或者first 字段名;	//添加到第一列
+    -modify 修改字段类型，位置...
+    -change 修改字段名，类型，位置...
+      change 源字段名 新字段名 类型，约束条件
+    -drop 字段名	//删除字段
+    -rename 新表名	//修改表名
+三、MySQL键值(重点)
+  1.MySQL索引(类型Btree、B+tree、hash)
+  索引：类似书的目录，对字段数据进行排序
+    -优点：加快数据检索速度
+    -缺点：占用物理空间，降低数据维护速度（增删该）
+  2.键值类型
+    -index	//普通索引 * 
+    -unique	//唯一索引
+    -fulltext	//全文索引
+    -primary key	//主键 *
+    -foreign key	//外键 *
+  3.键值类型详解
+   1)普通索引index
+    使用说明
+      一个表中可以有多个索引，经常查询的字段设为索引，
+      标志在KEY下显示MUL,字段的值可以重复，且可以赋NULL值
+    建表时指定索引
+      index(字段);
+    在已有的表中添加索引
+      create index 索引名 on 表名(字段名);
+    查看表中索引
+      show index from 表名;
+    删除指定索引
+      drop index 索引名 on 表名;
+   2)主键primary key
+    注意事项：
+     一个表中只能有一个primary key字段，对应的字段值不允许重复，且不能赋NULL值
+     若有多个字段作为primary key，称为复合主键，必须一起创建，
+     主建字段KEY标志PRI，通常与auto_increment连用(此时可以赋null,会自增)
+     经常把表中的唯一标识记录的字段设置为主键字段[记录编号字段]
+    建表的时候指定主建
+      primary key(字段名)
+    在已有的表中设置primary key
+      alter table 表名 add primary key(字段名);
+    删除表中primary key
+      alter table 表名 drop primary key;(若有自增属性，必须先去掉)
+   查看表的索引:
+	show create table 表名;
+   3)外键foreign key
+    概念:让当前表字段的值在另一个表中字段值的范围内选择
+    使用外键的条件
+	-表存储引擎必须是innodb
+	-字段类型要一致
+	-被参照字段必须是索引类型的一种(一般是primary key)
+    基本用法
+    	foreign key(表A的字段名) references 表B(字段名) 
+    	on update cascade on delete cascade
+    实例:
+    create table t1(
+      id int primary key auto_increment,
+      name char(5)
+      )engine=innodb;
+    create table t2(
+      id int,
+      pay float(7,2),
+      foreign key(id) references t1(id) on update cascade on delete cascade
+    )engine=innodb;
+      
 
 
 
