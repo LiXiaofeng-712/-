@@ -1,0 +1,63 @@
+Day01
+
+一、MySQL主从同步
+  1.基本思路
+    确保数据相同
+	-从库必须要有主库上的数据
+    配置主服务器
+      	-启用binlog日志	 log_bin=日志名，server_id=id值,binlog_format=mixed
+        -授权用户  grant replication slave on *.* to ...	
+        -查看当前正在使用的日志 
+    配置从服务器
+    	-设置server_id=不和主库id相同即可
+    	-指定主库信息
+    	 change master to
+    	 master_host="主库IP地址",
+    	 master_user="主库授权的用户",
+    	 master_password="授权时的密码",
+    	 master_log_file="当前使用日志文件名",
+    	 master_log_pos=偏移量;
+    	 start/stop slave;	//启动/停止从服务
+    测试配置
+        -给客户端授权访问主库
+    	-客户端连接主库写入数据，在从库上也能查询到
+    	-生产环境中需提前建好库和表
+  2. 查看当前服务器是不是从服务器2种方法：
+      show slave status;
+      cat /var/lib/mysql/master.info
+  3.从服务器相关文件
+    	master.info			主库信息
+    	relay-log.info		中继日志信息
+    	主机名-relay-bin.xxx	中继日志
+    	主机名-relay-bin.index	索引文件
+  4.主从同步常用配置选项
+    主库配置选项(对所有从库生效)
+    	binlog_do_db=库名		//设置主库对哪些库记日志
+    	binlog_ignore_db=库名	//设置主库对哪些库不记日志
+    从库配置选项(对自己有效)
+    	log_slave_updates		//记录从库更新，允许链式复制
+    	relay_log=名字		//指定中继日志文件名
+    	replicate_do_db=库名	//仅复制指定库
+    	replicate_ignore_db=库名	//不复制指定库
+二、MySQL主从同步模式
+  1.主从同步结构
+    一主一从
+    一主多从
+    互为主从
+    主从从：需配置log_slave_updates(允许链式复制)
+    
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
