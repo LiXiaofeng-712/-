@@ -1,0 +1,318 @@
+Day01
+
+一、Linux基本防护(系统管理部分知识的应用)
+ 用户账号安全
+ cal	//查看日历
+ 1.设置账号有效期
+   chage工具
+     -d 0 用户	//强制修改密码
+     -E yyyy-mm-dd 用户	//设置用户失效日期(-1取消)
+ 2.账号的锁定/解锁
+   passwd命令
+     -l	//锁定用户
+     -u	//解锁
+     -S	//查看用户状态
+ 3.强制定期修改密码
+   配置文件/etc/login.defs
+     -对新建的用户有效
+   用户家目录
+   .bash_logout	//用户退出时进行的操作
+   .bash_history	//用户操作的所有记录
+   .bashrc		//别名文件
+   .bash_profile	//环境变量
+    将所需的软件包放入/etc/skel/目录下，后续新增的用户家目录都会有此包
+ 4.伪装登陆提示
+   配置文件/etc/issue、/etc/issue.net
+     -分别适用本地、远程登陆
+     -默认会提示系统版本、内核等信息
+ 文件系统安全
+   1.程序和服务控制
+     系统服务工具：systemctl(红帽7版本)、chkconfig(红帽6版本)
+     chkconfig httpd off/on	//开机不启/自启
+   2.锁定/解锁保护文件
+     exit3/ext4的文件属性控制
+        -命令：chattr、lsattr
+      +、-、=控制方式
+        -属性i：不可变(immutable)
+        -属性a：仅可追加(append only)
+二、用户切换与提权(su 与 sudo)
+ 1.su切换用户身份
+   -快速切换用户身份
+   -普通用户执行时，需要目标用户的口令
+  -root执行时，不需要口令 
+   su 用户	//切换用户时，环境变量不会变,umask=002(目录),umask=113(文件)
+   su - 用户	//切换用户时，环境变量会一起变,umask=022(目录),umask=133(文件)
+   su		//直接切换到root用户
+   su - 用户 -c 命令 	//切换到用户时，执行命令
+ 2.sudo提升执行权限
+   2.1提权的基本用法
+     -只有操作系统管理员root有提权权限
+     -提权是让系统的普通用户有执行root用户命令的权限
+   2.2命令格式
+     -用法1:sudo 特权命令		//执行自己的特权命令
+     -用法2:sudu -u 目标用户 特权命令  //执行目标用户有的特权命令
+   2.3查看自己的sudo授权
+    -sudo -l
+   2.4配置sudo授权
+     修改方法:
+       -visudo
+       -vim /etc/sudoers
+     文件记录格式
+       (加%表示用户组)用户	主机列表=(省略时表示root身份)命令列表
+       tom  localhost(回环地址名字),mysql-50(hostname名字)=\
+       /usr/bin/systemctl * httpd(*表示所有),\
+       /usr/bin/vim /etc/httpd/conf/httpd.conf,...
+       %admgrp  xxx=命令, nopasswd:all	//提权用户不用输入密码
+       !/usr/bin/命令	//表示取反,此命令不可用
+  3.记录提权用户的时用情况
+     Defaults logfile="/var/log/sudo" //配置文件/etc/sudoers中添加
+  4.别名设置
+    -提高可重用性,易读性
+    -简化配置,时用记录更有条理
+    -配置文件中有模版,可直接修改,别名必须大写
+    -用户、主机名、命令...都可以设置别名
+    rpm -e --nodeps 软件包	//卸载时不卸载依赖包
+三、SSH访问控制(服务常用配置项目 加深密钥对认证登陆的使用)
+  1.配置文件/etc/ssh/sshd_config
+  *man 5 sshd_config	//帮助,详细解释
+    -Port 5156	//改用非标准端口
+    -Protocol 2	//启用ssh V2版本
+    -ListenAddress IP地址	//只允许指定IP连接
+    -PermitRootLogin no	//禁止root登陆
+    -UseDNS no	//不解析客户机地址
+    -LoginGraceTime 1m	//登陆限时(密码错误后限时)
+    -MaxAuthTries 3	//每次连接最多认证次数(密码)
+  2.黑/白名单配置/etc/ssh/sshd_config
+    -AllowUsers 用户@网段/具体IP 用户(不跟IP表示所有) //设置用户白名单
+    -AllowGroups	组名	//设置组白名单
+    -DenyUsers ...	//设置用户黑名单
+    -DenyGroups ...	//设置组黑名单
+  3.口令认证登陆(用户名 登陆系统密码)默认方式
+    PasswordAuthentication yes
+    密钥对认证登陆
+    PubkeyAuthentication yes
+    AuthorizedKeysFile      .ssh/authorized_keys(公钥文件)
+    将私钥传给其他主机也可以免密登陆,注意私钥权限755,公钥的影响
+    ssh-add //密钥未生成成功时
+四、SELinux安全防护
+ 1.1什么是SELinux
+   Security-Enhanced Linux
+      -一套强化Linux安全的扩展模块
+      -美国国家安全局主导开发
+    SELinux的运作机制
+      -集成到Linux内核(2.6及以上)
+      -操作系统提供可定制的策略、管理工具
+  1.2.红帽的SELinux策略集
+    SELINUXTYPE=targeted		//保护常用的服务，默认状态
+    sestatus	//查看当前selinux状态
+  1.3.模式控制
+    1.3.1修改kernel启动参数
+      -添加selinux=0 禁用
+      -添加enforcing=0设置为允许模式
+    1.3.2修改文件/etc/selinux/config
+      -设置SELINUX=disable 禁用
+      -设置SELINUX=permissive 宽松模式
+      -设置SELINUX=enforcing 强制模式
+    1.3.3临时修改(不可修改disabled状态)
+     setenforce = 1	//强制模式
+     setenforce = 0	//宽松模式
+     getenforce		//查看
+ 2.SELinux策略设置
+    2.1查看安全上下文
+       -为文件/目录/设备标记访问控制属性
+       -属性构成
+         用户:角色:访问类型:选项...
+    ls -Z	//查看文件/目录上下文属性
+    ps -Z 	//查看服务上下文属性
+    2.2修改安全上下文
+      一般操作规律
+        -移动的文件，原有的上下文属性不变
+        -复制的文件，自动继承目标位置的上下文
+        -新建的文档，自动继承父目录的访问类型
+      修改访问类型
+       chcon -t 访问类型 文件路径	//指定访问类型
+       chcon -R -t 访问类型 目录	//递归修改
+      重置安全上下文
+        使用restorecon工具
+           -恢复为所在位置的默认上下文属性
+        -R 目录  	//递归修改
+     2.3调整SELinux布尔值
+       使用getsebool查看
+       getsebool -a	//可列出所有布尔值
+       使用setsebool设置
+       setsebool -P ...	//永久更改
+    2.4查看selinux报错信息(里面有解决办法)
+     grep -i 'setroubleshoot' /var/log/messages | taile -1
+ 3.ftp命令行操作
+    yum -y install ftp
+    ftp 目标IP 	//进入ftp命令模式
+    ls	//查看ftp目录下文件
+    cd 目录	//切换ftp目录
+    lcd 目录	//切换当前目录
+    get 文件	//下载文件
+    put 文件	//上传文件
+  -SELinux以下两相布尔值会影响ftp下载上传
+    allow_ftpd_anon_write 
+    allow_ftpd_full_access
+##########################################################################
+Day02
+
+一、GPG数据加密与解密 和 数字签名
+ 1.加密和解密
+   发送方：明文->密文(加密的)
+   接收方：密文->明文(解密的)
+   1.1加密的目的及方式
+     确保数据的机密性
+      -对称加密：加密/解密用同一个密钥
+      -非对称加密：加密/解密用不同的密钥(公钥，私钥)
+     保护信息的完整性
+      -信息摘要：基于输入的信息生成长度较短、位数固定的散列值
+   1.2常见的加密算法
+     对称加密：DES、AES
+     非对称加密：RSA、DSA
+    Hash散列技术，用于信息摘要：MDB、SHA(完整性校验)
+  1.3GPG对称加密/解密
+    gpg --help	//帮助
+      -加密操作：gpg -c 文件
+      -解密操作：gpg -d 文件
+  1.4GPG非对称加密
+    userb接收方：
+      -创建密钥对：gpg --gen-key
+      -导出公钥：gpg --export -a > /tmp/userb.pub 
+      -使用私钥解密文件：gpg -d 加密文件 > 文件	//需输入创建密钥时的密码
+    usera发送方：
+      -导入公钥：gpg --import 公钥文件
+      -使用公钥加密文件： gpg -e -r 创建公钥时真实用户名 文件
+  1.5GPG做数字签名
+    userb用户使用私钥做数字签名
+      gpg -b 文件 	//给文件签名，生成.sig文件，需要私钥密码
+       将原文件和.sig文件一起传给对方
+    usera用户使用导入的公钥验证签名
+      gpg --verify 文件.sig	//若原文件被改变，会提示文件损坏  
+二、AIDE入侵检测系统
+ 1.装包aide
+ 2.修改配置文件/etc/aide.conf
+   @@define DBDIR /var/lib/aide         //检测信息目录
+   @@define LOGDIR /var/log/aide        //日志目录
+   database=file:@@{DBDIR}/aide.db.gz	//用于对比的文件
+   database_out=file:@@{DBDIR}/aide.db.new.gz  //检测到数据的存储文件名
+   //一下内容为可以检查的项目（权限，用户，组，大小，哈希值等）
+   #p:      permissions
+   #i:      inode:
+   #n:      number of links
+   #u:      user
+   #g:      group
+   #s:      size
+   #md5:    md5 checksum
+   #sha1:   sha1 checksum
+   #sha256:        sha256 checksum  
+   FIPSR =  p+n+u+g+s+acl+selinux+xattrs+sha256 //别名,存储一系列命令
+    !表示不检测此目录
+    实验:注释99-312行,添加检测目录和方法/root/ FIPSR
+ 3.初始化检查
+    aide --init	//检测信息放入/var/lib/aide/aide.db.new.gz
+    vim命令存储文件/root/.viminfo
+     历史命令存储文件/root/.bash_history
+ 4.备份初始检测信息
+    mv /var/lib/aide/aide.db.new.gz /tmp
+    cp /tmp/aide.db.new.gz /var/lib/aide/aide.db.gz  //拷贝回来重命名,用于对比
+ 5.执行入侵检测
+    aide --check	//与初始aide.db.gz文件做对比,显示增,删,改的变化
+三、扫描与抓包
+ 1.安全分析概述
+   1.1以获取一些公开/非公开信息为目的
+     -检测潜在的风险
+     -查找可攻击的目标
+     -收集设备/主机/系统/软件信息
+     -发现可利用的安全漏洞
+   1.2扫描方式
+     -Scan,主动探测
+     -Sniff,被动监听/嗅探
+     -Capture,数据包捕获(抓包)
+   1.3常见的工具
+     -扫描器:NMAP
+     -协议分析:tcpdump、WireShark
+ 2.NMAP扫描(man nmap帮助)
+   2.1装包nmap
+   2.2支持多种探测技术
+    -ping扫描
+      -多端口扫描
+    -TCP/IP指纹校验
+   2.3基本用法
+     -nmap [扫描类型] [选项] <扫描目标。。。>
+     2.3.1常用扫描类型
+      -sS,TCP SYN扫描(半开)	//三次握手只进行2次，最后一次不进行
+      -sT,TCP 连接扫描(全开)	//正常进行三次握手
+      -sU,UDP扫描
+      -sP,ICMP扫描	//可以ping多台或者网段
+      -A,目标系统全面分析
+     2.3.2选项
+       -p	//指定端口
+       -n	//不做DNS解析
+    nfs传输数据服务rpcbind
+作业：编写脚本要求：检查任意主机，任意服务是否运行
+/root/bin/check_ser.sh  192.168.4.52 80
+ 3.网络抓包工具
+  3.1tcpdump抓包命令(man tcpdump)
+    一款提前tcp数据包的命令行工具
+    基本用法：tcpdump [选项] [过滤条件]
+    常见监控选项
+     - -i,指定监控的网络接口(网卡)	
+     - -c,指定抓包个数
+     - -A,转换为ACSII码，以方便阅读
+     - -w,将数据包信息保存到指定文件
+     - -r,从指定文件读取数据包信息
+   tcpdump的过滤条件
+      -类型:host(主机IP)、net(网段)、port(端口)、portrange(端口范围)
+      -方向:src(源地址)、dst(目标地址)
+      -协议:tcp、udp、ip、wlan、arp、...(指定一个其他不会再抓)
+      -多个条件组合:and、or、not
+    默认只抓取eth0接口的包:tcpdump -i 网卡名称(修改抓取网卡接口)
+   3.2测试抓取ftp服务包
+     部署vsftpd服务，创建用户及密码，客户机利用ftp连接操作，看抓取效果
+   3.3测试抓取发邮件服务包
+     安装postfix软件包(发邮件)
+     启动服务
+     创建用户，接收邮件
+     安装telnet
+    helo pc254 定义主机名
+    mail from:root@localhost  发件人
+    rcpt to:xxx@localhost  收件人
+    data  写邮件正文
+     .   提交邮件
+    quit 断开连接
+   3.4测试抓取收邮件服务包
+     安装dovecot
+     启动服务，查看服务端口110
+     使用telnet连接访问
+    user 用户
+    pass 密码
+ 4.WireShark协议分析器(图形界面)
+   一款与tcpdump类似的抓包工具
+  软件包wireshark、wireshark-gnome
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   
+
+
+
+
