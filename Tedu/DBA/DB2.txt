@@ -1,6 +1,6 @@
 Day01
 
-一、MySQL主从同步
+一、MySQL主从同步(生产中一定会用)
   1.基本思路
     确保数据相同
 	-从库必须要有主库上的数据
@@ -44,12 +44,521 @@ Day01
     一主一从
     一主多从
     互为主从
-    主从从：需配置log_slave_updates(允许链式复制)
+    主从从：需配置log_slave_updates(允许链式复制)***
+  2.主从复制模式(主库从库需同时开启)
+   1)异步复制(默认模式)
+     主库执行完事务，不管从库是否同步，直接回复客户端结果，效率高，数据一致性不保证
+   2)全同步复制(也称组同步复制)
+     主库执行完事务，等待全部从库同步数据后才回复客户端，保证数据一致，效率低，不常用
+   3)半同步复制
+     主库执行完事务，保证一台从库同步数据后，即可回复客户端，介于以上两种之间，工作中常用模式
+   3.半同步复制模式配置
+     1)查看是否允许动态加载模块(若不支持，在配置文件中更改)
+     show variables like "have_dynamic_loading";
+     2)查看是否有此模块，没有命令行加载插件
+     select plugin_name,plugin_status from information_schema.plugins where plugin_name like '%semi%';
+      主库安装插件
+      install plugin rpl_semi_sync_master soname 'semisync_master.so';
+      从库安装插件
+      install plugin rpl_semi_sync_slave soname 'semisync_slave.so';
+     3)启用半同步复制
+      set global rpl_semi_sync_master_enabled = 1;	//主库
+      set global rpl_semi_sync_slave_enabled = 1;		//从库
+     4)永久启用更改配置文件
+       主库配置
+       plugin-load=rpl_semi_sync_master=semisync_master.so
+       rpl_semi_sync_master_enabled=1
+       从库配置
+       plugin-load=rpl_semi_sync_slave=semisync_slave.so
+       rpl_semi_sync_slave_enabled=1
+######################################################################
+Day02
+
+一、mysql数据读写分离
+  1.原理
+   由代理服务器面向客户，根据客户读写需求进行过滤分离，给后端服务器处理
+  2.部署maxscale服务
+    1)安装maxscale软件
+    2)修改配置文件/etc/maxscale.cnf
+     threads=auto	//服务器进程数设为自动
+     [server1]			//第一台服务器
+	type=server			//类型
+	address=数据库IP地址	//数据库IP地址
+	port=端口号			//端口
+	protocol=MySQLBackend	//协议(后端数据库服务器)
+     [server2]
+       ...
+     [MySQL Monitor]	//监视数据库
+	type=monitor	
+	module=mysqlmon
+	servers=server1，server2	//监视的服务器列表	
+	user=myuser			//监视时使用的用户名
+	passwd=mypwd		//监视时使用的密码
+	monitor_interval=10000
+     #[Read-Only Service]		//未设置，需注释
+        ...
+     [Read-Write Service]	//读写分离服务设定
+	type=service
+	router=readwritesplit
+	servers=server1,server2	//服务器
+	user=myuser		//路由用户，查看用户输入的用户名密码是否存在
+	passwd=mypwd	//密码，只需授权select权限在mysql库，安全
+	max_slave_connections=100%
+     [MaxAdmin Service]		//软件管理服务
+	type=service
+	router=cli
+     #[Read-Only Listener]	//不定义只读服务端口，需注释
+        ...
+     [Read-Write Listener]	//读写服务端口
+	type=listener
+	service=Read-Write Service
+	protocol=MySQLClient
+	port=4006
+     [MaxAdmin Listener]		//软件管理端口
+	type=listener
+	service=MaxAdmin Service
+	protocol=maxscaled
+	socket=default
+	port=未被占用的端口号即可
+    3)部署授权用户
+      监控用户权限: ... replication slave,replication client on *.* ...
+      路由用户权限: ... select on mysql.* ...
+    4)启动数据读写分离服务
+     maxscale -f /etc/maxscale.cnf
+    5)测试配置
+     maxadmin -uadmin -pmariadb -P端口	//本机
+     mysql -h服务器地址 -P端口 -u用户 -p密码	//客户机
+   6)读写分离测试
+     写入后查看主库和从库是否都有数据，有表示从主库写入
+     读入测试可以在从库加入主库不存在的数据，进行查询
+二、mysql多实例
+  1.在一个物理机上运行多个数据库服务
+  2.部署多实例
+   1)装包mysql-5.7.20-linux-glibc支持多实例
+   2)新建修改主配置文件/etc/my.cnf
+    [mysqld_multi]	//启用多实例
+    mysqld=/usr/local/mysql/bin/mysqld_safe	//指定进程文件路径
+    mysqladmin=/usr/local/mysql/bin/mysqladmin	//指定管理命令路径
+    user=root		//指定进程用户
     
-   
+    [mysqld1]		//实例进程名称
+    port=端口		//端口号(不要重复)
+    datadir=/目录		//数据库目录(自己指定)
+    socket=/目录/名字.sock	//指定sock文件路径和名字
+    pid-file=/目录/名字.pid	//进程pid号文件位置
+    log-error=/目录/名字.err	//错误日志位置
+    [mysqld2]
+     ...
+   3)初始化多实例数据库
+    ./mysqld --user=mysql --basedir=软件安装目录 --datadir=数据库目录 --initialize	//手动初始化
+    /usr/local/mysql/bin/mysqld_multi start 实例编号	//启动服务
+    /usr/local/mysql/bin/mysqld_multi --user=用户 --password=密码 stop 1	//停止服务
+   4)连接数据库
+    /usr/local/mysql/bin/mysql -uroot -p初始密码 -S sock文件
+########################################################################
+Day03
 
+MHA简介
+  针对数据库的高可用集群软件,可以快速(0-30s)故障自动切换,保证数据的一致型(日本开发)
+MHA组成
+  MHA Manager(管理节点)
+    -可以单独部署在一台独立的机器上,管理其他节点
+    -也可以部署在一台slave节点上
+  MHA Node(数据节点)
+    -运行在每台MySQL服务器上
+MHA工作过程
+  1.从宕机崩溃的master保存二进制日志事件
+  2.时别含有最新更新的slave
+  3.应用差异的中继日志(relay log)到其他的slave
+  4.应用从master保存的二进制日志事件
+  5.提升一个slave为新的master
+  6.使其他的slave连接新的master进行复制
+MHA部署
+  1.准备环境
+    1.1装包perl-*,node包(数据库服务器与管理服务器需要),manager包(管理服务器需要)
+    1.2所有节点授权root@"%"用户权限监控
+    1.3实现所有数据库服务器之间ssh免密登陆
+    1.4实现数据库服务器与管理主机ssh免密登陆
+  2.配置MHA集群
+    2.1配置一主多从服务器集群,配置半同步复制
+     主库/备用主库/etc/my.cnf配置
+        server_id=
+        log_bin=路径和名字
+        binlog_format=模式
+        plugin_load=主从模式		
+        rpl_semi_sync_master_enabled=1	//主库半同步模式开启
+        rpl_semi_sync_slave_enabled=1	//从库半同步模式开启
+        relay_log_purge=off		//不自动删除中继日志文件
+      从库
+        server_id=
+       >change master to
+        master_host=主机IP地址
+        master_user=主从用户
+        master_password=主从密码
+        master_log_file=日志文件
+        master_log_pos=偏移量
+    2.2授权replication slave权限用户
+      grant replication slave on *.* to 用户@"%" identified by "密码";
+    2.3配置管理主机
+      2.3.1修改配置文件
+	master_ip_failover_script=自动切换VIP脚本
+ 	manager_workdir=配置文件路径
+	manager_log=日志路径
+	repl_password=123456	//主从用户密码
+	repl_user=repluser	//主从用户
+	ssh_port=22			//远程端口
+	ssh_user=root		//远程使用用户
+	password=123456		//监控数据库密码	
+	user=root			//监控数据库用户
+	[server1]
+	hostname=		//IP地址
+	candidate_master	//主备
+	....
+	no_master=1		//不做主备
+     2.3.2根据配置文件设置对应配置
+     	监控用户授权
+     	grant all on *.* to root@"%" identified by "123qqq...A"; 
+     	修改脚本文件VIP地址
+     	my $vip = '192.168.4.100/24';
+     	给脚本文件执行权限
+     	chmod  755 /etc/mha/master_ip_failover
+     	在主库配置VIP
+     	ifconfig  eth0:1 192.168.4.100/24
+    2.4在管理主机检测所有配置
+      2.4.1检测免密配置
+       masterha_check_ssh --conf=/etc/mha/app1.cnf
+      2.4.2检测主从同步配置
+       masterha_check_repl --conf=/etc/mha/app1.cnf
+      2.4.3启动管理服务
+       masterha_manager --conf=/etc/mha/app1.cnf \
+       --remove_dead_master_conf  --ignore_last_failover
+    2.5维护MHA集群,把坏掉的添加到集群
+       2.5.1重新启动故障机器,配置为当前主库的从库
+       2.5.2修改管理主机配置文件
+########################################################################
+Day04
 
+一、MySQL视图 view
+  只有.frm文件时,视图表 
+                   表的存储引擎是memory(数据存储在内存,重起会丢失)
+1.视图概述
+  1.1什么是视图
+    -虚拟表
+    -内容与真实表相似，有字段有记录
+    -视图并不在数据库中以存储的数据形式存在                  
+    -行和列的数据来自定义视图时查询所引用的基表，并且在具体引用视图时动态生成
+    -更新视图的数据，就是更新基表的数据
+    -更新基表数据，视图的数据也会跟着改变
+  1.2视图的优点
+    简单
+      -用户不许关心视图中的数据如何查询获得
+      -视图中的数据已经是过滤好的符合条件的结果集
+    安全
+      -用户只能看到视图中的数据
+    数据独立
+      一旦视图结构确定，可以屏蔽表结构对用户的影响
+  1.3视图使用限制(了解)
+    -不能在视图上创建索引
+    -在视图的from子句中不能使用子查询
+    -以下情形中的视图不可更新的
+      关键字、常量视图/JOIN/FROM一个不能更新的视图、使用了临时表、where子句的子查询引用了from子句中的表
+2.视图的基本使用
+  2.1创建视图
+   create view 视图名称 as SQL查询;
+   create view 视图名称(自定义字段名) as SQL查询;    
+  2.2查看视图
+   show table status;
+   show table status where comment="view"\G;
+   show create view 视图名;	//查看创建视图具体命令
+3.视图进阶
+  3.1设置字段别名
+    -创建视图时的字段名不可以重复，所以要定义别名
+   create view 视图名 as select 表名.字段名 as 字段别名 from 表名 表别名 left join 表名 表别名 on 条件；
+  3.2重要选项  
+    -覆盖or replace         
+    create or replace view 视图名 as select 查询;	//若视图存在会覆盖已有视图
+    -算法algorithm
+     undefined //未定义时，默认merge替换方式，直接查询视图表
+     temptable //具体化方式:会先执行创建视图时的查询命令存放起来，再去查询    
+     create algorithm=算法 view ...          
+    -检查范围
+     local		//仅满足当前视图的限制
+     cascaded	//同时满足基表的限制(默认)
+     create view 视图名 SQL查询 with 检查范围 check option;
+     
+二、MySQL存储过程 procedure
+1.存储过程介绍
+  1.1存储过程，相当于时MySQL语句组成的脚本
+    -指的时数据库中保存的一系列SQL命令的集合
+    -可以在存储过程中使用变量、条件判断、流程控制等
+  1.2优点
+    -提高性能
+    -可以减轻网络负担
+    -可以防止对表的直接访问
+    -避免重复编写SQL操作
+2.创建存储过程
+  格式: delimiter //		//改变命令结尾符号,保证存储过程SQL命令遇到;不执行
+      create procedure 名称()
+  	begin
+  	  select * from user;
+  	  代码
+  	  ...
+  	  ...
+  	end
+  	//
+  	delimiter;
+3.调用存储过程
+  call 名称();		//()中没有参数时可以省略
+4.查看存储过程
+  4.1方法一
+    show procedure status;
+  4.2方法二
+    select db,name,type,body from mysql.proc where name="存储过程名";
+5.删除存储过程
+  drop procedure 存储过程名;
+6.变量类型
+  6.1会话变量
+   show session variables like "%%";	//查看会话变量
+   set session ...;	//设置会话变量
+  6.2全局变量
+   show global variables like "%";	//查看全局变量
+   set global ...; 	//设置全局变量
+  6.3用户变量
+    select max(uid) into @变量名 from user;	//使用sql命令查询结果赋值
+    set @变量=5;	//自定义变量
+    select @变量;	//查询变量
+  6.4局部变量declare
+    -多个变量时需提前定义declare，顺序赋值
+    delimiter //
+    create procedure db9.p1()
+    begin 
+    declare j int;
+    declare k char(5);
+    set j=5,k="lxf";
+    select j,k;
+    end
+     //
+    delimiter ;
+7.参数类型  
+  in类型:给存储过程传递数据(默认)
+    	delimiter //
+	create procedure db9.p1(in x char(20))
+	begin
+	select name from db9.user where name=x;
+	end
+	//
+	delimiter ;
+	call db9.p1("root");
+  out类型:接受从存储过程输出的数据
+   	delimiter //
+	create procedure db9.p1(in x char(20),out y int)
+	begin
+	select count(name) into y from db9.user where shell=x;
+	select y;
+	end
+	//
+	delimiter ;
+	call db9.p1("root",@x);	//out类型需要用变量占位	
+  inout类型:前2者结合
+    	delimiter //
+    	create procedure db9.p1(inout x char(30))
+    	begin
+    	select name,shell from db9.user where shell=x;
+    	select count(*) into x from db9.user;
+    	select x;
+    	end
+    	//
+    	delimiter ;
+    	set @x="/sbin/nologin";
+    	call db9.p1(@x);
+8.算术运算
+  +、-、*、/、%、DIV(整除运算)
+三、流程控制
+1.条件测试
+  1.1数值比较
+    ==、>、>=、<、<=、!=、between .. and ..
+  1.2逻辑比较、范围、空、非空、模糊、正则
+    or、and、!
+    in ..、not in ..
+    is null、is not null
+    like
+    regexp
+2.选择结构
+  2.1单分支
+   if 条件测试 then
+       代码;
+   end if;
+  2.2双分支
+   if 条件测试 then
+        代码;
+   else
+      	代码;
+   end if;
+  2.3条件循环while(先判断再执行,条件不成立时结束循环)
+   while 条件测试
+   do
+      	代码;
+   end while;
+  2.4死循化loop
+   loop
+     	代码;
+   end loop;
+  2.5条件式循环repeat(先执行再判断，条件成立时结束循环)
+   repeat
+    	代码;
+   	until 条件判断
+   end repeat;
+3.控制循环的执行
+  -leave 标签名	//跳出循环
+  -iterate 标签名	//放弃本次循环，执行下一次循环
+##########################################################################
+Day05
+一、分库分表
+1.分库分表概念
+  将存放在一个数据库(主机)中的数据，按照特定方式进行拆分，分散存放到多个数据库(主机)中，以达到分散单台设备负载的效果
+2.垂直分割
+  -将单个表，拆分成多个表，分散到不同的数据库
+  -将单个数据库的多个表进行分类，按业务类别分散到不同数据库上
+3.水平分割
+  -按照表中某个字段的某种规则，把表中的许多记录按行切分，分散到多个数据库中
+4.mycat简介
+  4.1是基于java的分布式数据库系统中间层，为高并发环境分布式访问提供解决方案
+    -支持JDBC形式连接
+    -支持MySQL、Oracle、Sqlserver、Mongodb等
+    -提供数据读写分离服务
+    -可以实现数据库服务器的高可用
+    -提供数据分片服务
+    -基于阿里巴巴Cobar进行研发的开源软件
+    -适合数据大量写入的存储需求
+  4.2分片规则
+    -枚举法 sharding-by-intfile
+    -固定分片 rule1
+    -范围约定 auto-sharding-long
+    -求模法 mod-long
+    -日期列分区法 sharding-by-date
+    -通配取模 sharding-by-pattern
+   -ASCII码求模通配 sharding-by-prefixpattern
+    -编程指定 sharding-by-substring
+    -字符串拆分hash解析 sharding-by-stringhash
+    -一致性hash sharding-by-murmur
+  4.3工作过程
+    -先解析这个sql查找涉及到的表
+    -然后看此表的定义，如果有分片规则，则获取sql里分片字段的值，并匹配分片函数，获得分片列表
+    -然后将sql发往这些分片去执行
+    -最后收集和处理所有分片结果数据，并返回到客户端
+5.配置mycat(端口号8066)
+  5.1装包java环境包，mycat
+  5.2配置文件
+    5.2.1目录结构说明
+     -bin		//mycat命令
+     -catlet	//扩展功能
+     -conf		//配置文件
+     -lib		//系统运行时使用的jar文件
+     -log		//mycat启动日志和运行日志
+     -wrapper.log	//mycat服务启动日志
+     -mycat.log	//记录sql脚本执行后的报错内容
+    5.2.2重要配置文件说明
+     -server.xml	//设置连mycat的帐号信息
+     -schema.xml	//配置mycat的真实库表
+     -rule.xml	//定义mycat分片规则
+    5.2.3配置标签说明
+     -<user>...</user>		//定义连mycat用户信息
+     -<datanode>...</datanode>	//指定数据节点
+     -<datahost>...</datahost>	//指定数据库地址机用户信息
+    5.2.4修改配置文件server.xml
+     <user name="test">		//连接mycat用户名test
+        <property name="password">test</property>	//连接密码test
+        <property name="schemas">TESTDB</property>  //客户端显示的库名TESTDB
+     </user>
+    5.2.5修改配置文件schema.xml
+      <schema name="TESTDB" ...>	//对应server.xml中库名
+      <table ... dataNode="dn1,dn2" rule="auto-sharding-long" />  //设置数据库名称dn1,dn2... 和算法
+      <dataNode name="dn1" dataHost="localhost1" database="db1" />  //定义分片使用的库
+      <writeHost host="hostM1" url="192.168.4.54:3306" user="root" password="123456">	//指定数据库的地址和登陆密码
+      </writeHost>
+6.数据库机台授权登陆用户
+  grant all on *.* to root@"%" identified by "密码"
+7.修该数据库配置不区分表名大小写
+  lower_case_table_names=1
+8.启动服务
+  mycat start
+  ss -antulp | grep 8066	//查看服务是否启动
+  ps -C java
+9.测试服务
+  9.1在客户端连接分片服务器
+    mysql -u用户名 -p密码 -hIP地址 -P端口号
+  9.2创建表，分片字段需查询相应的算法
+二、MySQL优化
+1.调优思路
+  升级硬件		CPU、内存、硬盘
+  加大网络带宽		付费加大带宽
+  调整mysql服务运行参数	并发连接数、连接超时时间、重复使用的进程数...
+  调整与查询相关的参数	查询缓存、索引缓存...
+  启用慢查询日志	slow-query-log
+  网络架构不合理	调整网络架构
+2.性能调优
+  2.1硬件
+   uptime查看CPU使用情况
+   free查看内存使用情况
+   top第三行wa表示等待速度，反映硬盘速度
+  2.2带宽
+  2.3并发及连接控制
+   -max_connections	允许的最大并发连接数
+    show variables like "%conn%";	//查看与连接有关的变量
+    show global status like "%conn%";	//查看与连接有关全局状态
+     最大连接数计算公式：
+    Max_used_connections(最大并发连接数)/max_connections=85%
+    flush status;	//刷新当前状态
+    
+   -connect_timeout	等待连接超时，默认10秒，仅登陆时有效
+    show variables like "%timeout%";	//查看与超时相关的变量
+    innodb_lock_wait_timeout 	//死锁等待超时时间
+    
+   -wait_timeout		等待关闭连接的不活动超时秒数，默认28800秒(8小时)
+   	 防止大量写入中断开连接
+  2.4缓存参数控制(默认8M，从物理内存中划分)
+   key_buffer_size	//用于myisam引擎的关键索引缓存大小(单位为字节)，加快查询
+   sort_buffer_size	//为每个要排序的线程分配此大小的缓存空间，加快查询速度
+   read_buffer_size	//为顺序读取表记录保留的缓存大小，加快查询速度
+   thread_cache_size	//允许保存在缓存中被重用的线程数量，加快处理速度
+   table_open_cache	//为所有线程缓存的打开的表数量，加快处理速度
+3.查询优化 
+  3.1常见日志种类
+    tail -f 文件名	//时时查看文件消息
+     -错误日志  记录启动/运行/停止过程中的错误消息	log-error=[自定义名称]
+     -查询日志  记录客户端连接和增删改查操作	
+      general-log(默认名:主机名.log) 
+      general-log-file=名称
+     -慢查询日志  记录耗时较长或不使用索引的查询操作  
+      slow-query-log(默认名:主机名-slow.log)
+      slow-query-log-file=名称
+      long-query-time=超时时间(默认10s)
+     统计慢查询日志信息:mysqldumpslow 日志文件
+  3.2查询缓存(默认1M，从物理内存划分):缓存曾经查找过的记录
+   show variables like "query_cache%";	//查询缓存信息
+   query_cache_size	//查询缓存大小
+   query_cache_type	//查询缓存开关，默认off
+   show global status like "qcache%";	//查看当前查询缓存统计
+   Qcache_hits		//在查询缓存中找到的次数
+   Qcache_inserts		//接受到查询的总次数
 
+Day01-05
+总结:
+部署mysql主从同步:
+配置master
+配置slave
+主从同步工作原理: IO线程  SQL线程
+主从同步结构模式: 一主一从  一主多从  主从从  主主结构
+主从同步常用配置参数: log_slave_updates允许链式复制(主从从结构)
+主从同步复制模式: 异步(默认)  全同步  半同步
+
+数据读写分离  [maxscale  mysqlproxy  mycat]  mysql中间件
+
+MHA软件部署mysql高可用集群  [MHA软件 + Mysql一主多从]
+
+数据分片  mycat软件
+
+mysql多实例     mysql性能优化   mysql视图   mysql存储过程
 
 
 
