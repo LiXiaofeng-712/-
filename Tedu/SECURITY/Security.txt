@@ -284,31 +284,556 @@ Day02
    3.4测试抓取收邮件服务包
      安装dovecot
      启动服务，查看服务端口110
+     修改配置文件:
+     /etc/postfix/main.cf
+       home_mailbox = Maildir/
+     /etc/dovecot/conf.d/10-auth.conf
+     	disable_plaintext_auth = no
+     /etc/dovecot/conf.d/10-mail.conf
+     	mail_location = maildir:~/Maildir
+     重起postfix、dovecot服务	 
      使用telnet连接访问
     user 用户
     pass 密码
+    list	//邮件列表
+    retr 1	//查看邮件内容
  4.WireShark协议分析器(图形界面)
    一款与tcpdump类似的抓包工具
   软件包wireshark、wireshark-gnome
+  显示OSI4层协议中每层的信息
+#######################################################################
+Day04
+
+一、系统审计
+  1.审计
+    1.1什么是审计
+     基于事先配置的规则生成日志，记录可能发生再系统上的事件
+     审计不会为系统提供额外的安全保护，但她会发现并记录违反安全策略的人及其对应的行为
+     审计能够记录的日志内容：
+       -日期与事件、事件结果
+       -触发事件的用户
+       -所有认证机制的使用都可以被记录，如ssh等
+       -对关键数据文件的修改行为等
+    1.2审计的案例
+      -监控文件访问
+      -监控系统调用
+      -记录用户运行的命令
+      -审计可以监控网络访问行为
+    -ausearch工具，可以根据条件过滤审计日志
+    -aureport工具，可以生成审计报告
+  2.部署audit
+    2.1装包audit，起服务auditd
+    2.2主配置文件/etc/audit/auditd.conf
+        日志文件/var/log/audit/audit.log
+    2.3命令auditctl
+     auditctl -h	//命令帮助
+     auditctl -s	//查询审计状态
+     auditctl -l	//查看审计规则
+     auditctl -D 	//删除所有审计规则
+      2.3.1定义临时规则
+      auditctl -w path -p permission -k key_name	//命令格式
+       -path为需要审计的文件或目录
+       -permission权限可以是r,w,x,a(文件或目录的属性发生变化)
+       -key_name为可选项，方便识别哪些规则生成特定的日志项
+      ausearch -k key_name -i 	//根据key搜索日志，-i为交互式操作
+      2.3.2定义永久规则
+        将auditctl -l查看到的规则，写入配置文件/etc/audit/rules.d/audit.rules
+      echo `auditctl -l` >> /etc/audit/rules.d/audit.rules
+  3.审计日志
+    /usr/share/doc/audit-版本号/rules/*.rules	//存放各种规则模版
+    /usr/include	//软件的头文件和库文件存放处
+    日志详解
+    -type为类型
+    -msg为(time_stamp:ID),时间是date+%s
+    -arch=c000003e，代表x86_64(16进制)
+    -success=yes/no,事件是否成功
+    -a0-a3是程序调用时前4个参数，16进制编码了
+    -ppid父进程ID，如bash，pid进程ID，如cat命令
+    -auid是审核用户的id，su - test，依然可以追踪su前的账户
+    -uid，gid用户与组
+    -tty：从哪个终端执行的命令
+    -comm="cat"	用户在命令执行的指令
+    -exe="/bin/cat"  实际程序的路径
+    -key="sshd_config"  管理员定义的策略关键字key
+    -type=CWD   用来记录当前工作目录
+      -cwd="/home/username"
+    -type=PATH
+      -ouid(owner's user id)  对象所有者id
+      -guid(owner's groupid)  对象所有组id
+二、服务安全
+ 1.Nginx安全
+   1.1删除不需要的模块
+    --with...	//添加模块
+    --without...	//移除模块	
+    nginx -t 	//检测配置文件语法格式是否有误
+     自动索引功能(autoindex)：当访问时首页不存在时，会显示目录下所有文件
+    --without-autoindex-module	//移除不需要模块
+   1.2隐藏和修改版本号
+    server_tokens off;	//配置文件中添加，隐藏服务软件版本信息
+    curl --help
+    curl -I xxx	//显示版本信息
+    curl -i xxx	//显示http头部信息
+    curl -X 请求方式	
+   1.3限制并发(限制某1台客户端同时访问的请求个数)
+     ngx_http_limit_req_module	//默认模块，可以降低DDos攻击风险
+     配置功能：
+      -语法：http{limit_req_zone $binary-remote_addr zone=one:10m rate=1r/s;}
+     	    server{limit_req zone=one burst=5;}
+      -获取客户端IP地址$binary-remote_addr
+      -将客户端IP信息存储名称定义为one，空间10M
+    -1M可以存储8千个IP信息，10M存8万个主机IP信息
+    -rate表示每秒处理几个请求，多余的放入漏斗
+    -burst设置漏斗个数，超出会报错
+   1.4拒绝非法请求
+     常见的http请求方法(一般只需要get和post)
+       请求方法	功能描述
+       GET		请求指定的页面信息，并返回实体主体
+       HEAD		类似get请求，只不过返回的响应中没有具体的内容，用于获取报头
+       POST		向指定自源提交数据进行处理请求(例如提交表单或上传文件)
+       DELETE	请求服务器删除指定的页面
+       PUT		向服务特定位置上传资料
+         ...	
+      禁用其他方法，仅允许(get|post)
+     server{
+          if ($request_method !~ ^(GET|POST)$){
+           	return 444;
+          }
+        }  
+      测试curl -i -X 请求方法 http://.../
+   1.5防止buffer溢出
+   http{
+     client_body_buffer_size 1K;	//缓冲区最小空间
+     client_header_buffer_size 1K;	//头部信息最小空间
+     client_max_body_size 16K;		//缓冲区最大空间
+     large_client_header_buffers 4 4K;	//头部信息最大存储空间
+     }
+ 2.mariadb安全
+   2.1初始化安全脚本
+    mysql_secure_installation	//初始化安全脚本
+     -输入旧密码，配置新root密码
+     -删除匿名账户
+     -禁止root远程登陆
+     -删除测试数据库
+     -刷新权限
+   2.2密码安全(明文方式保存在历史记录中)
+     修改密码：命令行mysqladmin、数据库set/alter/修改表
+     清空历史记录文件：/root/.bash_history、/root/.mysql_history
+   2.3数据的备份和恢复
+     mysqldump -uroot -p123456 库名 [表名] > 备份文件
+     mysqldump -uroot -p123456 库名 [表名] < 备份文件
+   2.4数据安全(默认数据是明文传输)
+     -创建可以远程登陆的账户
+     -使用tcpdump抓包
+      tcpdump -w log -i eth0 src or dst port 3306
+     -客户端远程登陆数据库，查看抓包数据
+     解决办法：使用SSL或SSH加密数据传输,mysql数据加密服务(自行学习)
+ 3.Tomcat安全  
+   3.1隐藏版本信息
+     影响浏览器显示信息,修改tomcat主配置文件，隐藏版本信息
+    -yum -y install java-1.8.0-openjdk-devel.x86_64  //装包
+    -jar -xf /usr/local/tomcat/lib/catalina.jar  //解包
+    -cd /usr/local/tomcat/lib
+    -vim org/apache/catalina/util/ServerInfo.properties //修改文件
+      server.info=软件名
+      server.number=软件版本号
+     影响命令行显示信息,修改配置文件
+    curl -I localhost:8080	//会显示头部信息
+    vim /usr/local/tomcat/conf/server.xml
+       <Connector ... server="虚假信息" />	//隐藏头部版本信息
+   3.2降权启动
+     默认root用户启动tomcat服务,不安全
+     useradd tomcat  //创建普通用户
+     chown -R tomcat.tomcat /usr/local/tomcat  //修改文档所有者和所属组
+     su - tomcat -c "/usr/local/tomcat/bin/startup.sh"  //使用tomcat启动
+     设置开机自启方法
+      chmod +x /etc/rc.local
+      echo 'su - tomcat -c "/usr/local/tomcat/bin/startup.sh"' >> /etc/rc.local
+   3.3删除默认测试页面
+三、Linux安全之打补丁
+ 1.创建补丁文件diff
+  diff制作补丁文件的原理：告诉我们怎么修改第一个文件后能得到第二个文件。
+  diff命令常用选项：
+	-u  输出统一内容的头部信息（打补丁使用），计算机知道是哪个文件需要修改
+	-r  递归对比目录中的所有资源（可以对比目录）
+	-a  所有文件视为文本（包括二进制程序）
+	-N  无文件视为空文件（空文件怎么变成第二个文件）
+	-N选项备注说明：
+	A目录下没有txt文件，B目录下有txt文件
+	diff比较两个目录时，默认会提示txt仅在B目录有（无法对比差异，修复文件）
+	diff比较时使用N选项，则diff会拿B下的txt与A下的空文件对比，补丁信息会明确说明如何从空文件修改后变成txt文件，打补丁即可成功
+   1.1给单个文件创建补丁文件
+     使用patch命令对单文件代码打补丁
+     yum -y install patch
+     patch -p0 < 生成的补丁文件  //-p0(p表示路径0表示打包路径和补丁文件层级)
+     patch -RE < 补丁文件	//恢复补丁前文件
+   1.2给目录创建补丁文件
+     diff -uraN 目录1/ 目录2/ > 补丁文件
+#####################################################################
+Day04
+
+一、iptables防火墙(保护、隔离)
+ 1.iptables的表、链结构(记)
+    4张表(iptables服务功能分类)
+     raw：状态跟踪表  PEROUTING、OUTPUT
+     mangle:打标记表(记录所有访问)  5条链都有
+     nat：地址转换表(源地址、目标地址)  PEROUTING、POSTROUTING、OUTPUT、INPUT
+     filter：过滤表(不指定时默认调用此表)  INPUT、FORWARD、OUTPUT
+    5条链(ip包传输的方向)
+     INPUT：匹配进入防火墙本机的ip包
+     OUTPUT：匹配从防火墙本机出去的ip包
+     FORWARD：匹配经过防火墙主机的ip包
+     POSTROUTING：路由后处理
+     PREROUTING：路由前处理
+    匹配流程：顺序比对，匹配即停止(LOG除外)
+ 2.iptables使用
+   2.1命令格式
+    iptables [-t表名] 选项 [链名] [条件] [-j 目标操作]
+    target(处理动作):ACCEPT、REJECT
+   2.2常用选项
+     查看规则
+       -L	//列出说有的规则条目
+       -n	//以数字形式显示地址、端口等信息
+       --line-numbers	//查看规则时，前面显示序号
+     添加规则
+       -A	//在链末尾追加一条规则
+       -I	//在链开头或指定序号插入一条规则,-I INPUT 序号
+     删除规则
+       -D 	//删除链内指定序号或内容的一条规则
+       -F	//清空所有规则，后面跟链名只清空此链规则
+     设置默认规则
+       -P	//修改默认规则
+     iptables-save > /etc/sysconfig/iptables  //永久保存规则
+   2.3条件
+   2.4基本目标操作(target)
+     ACCEPT:允许通过/放行
+     DROP:直接丢弃，不给任何回应
+     REJECT:拒绝通过，必要时回给出提示
+     LOG:记录日志，然后传给下一条规则
+二、filter表控制
+  1.防护类型及条件
+    1.1开启内核IP转发
+      echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+    或 echo 1 > /proc/sys/net/ipv4/ip_forward
+    1.2基本匹配条件(!取反)
+      通用匹配
+         协议匹配：-p 协议名
+         地址匹配：-s 源地址IP、-d 目标地址IP
+         接口匹配：-i 收数据的网卡、-o 发数据的网卡
+      隐含匹配(--help找帮助)
+         端口匹配：--sport 源端口、--dport 目标端口
+       ICMP类型匹配：--icmp-type ICMP类型(ping echo-request、pong echo-reply)
+       iptables -I INPUT -p icmp --icmp-type echo-reply -j ACCEPT 
+         //接收ping回应包pong
+  2.扩展匹配
+    基本用法
+     -m 扩展模块 --扩展条件 条件值
+    常见的扩展条件类型
+      arp -n //显示ping过本机的mac地址
+      MAC地址匹配：-m mac --mac-source MAC地址
+       多端口匹配：-m multiport --sports 源端口列表
+               -m multiport --dports 目标端口列表
+     IP范围匹配：-m iprange --src-range IP1-IP2(完整的IP地址)
+     		   -m iprange --dst-range IP1-IP2
+    配置网关：systemctl stop NetworkManager
+     	   route add default gw IP地址	//添加网关地址，删除用del
+    52开启路由转发：sysctl -a 	//列出所有内核参数，必记
+        echo "net.ipv4.ip_forward = 1" > /etc/sysctl.conf
+三、nat表应用
+  共享一个公网地址上网
+  1.地址转换
+    源地址转换(共享一个公网地址,企业常用)
+    目标地址转化(发布私有网络服务)
+   iptables -t nat -A POSTROUTING -s 局域网地址/24 -p tcp --dport 端口 \
+   -j SNAT --to-source 网关地址	//nat源地址转换
+#######################################################################
+Day05
+
+监控概述
+ 监控的目的
+   报告系统运行状况
+     -每一部分必须同时监控
+     -内容包括吞吐量、反应时间、使用率等
+   提前发现问题
+     -进行服务器性能调整前，知道调整什么
+     -找出系统的瓶颈在什么地方
+ 监控的资源类别
+   公开数据
+     -Web、FTP、SSH、数据库等应用服务
+     -TCP或UDP端口
+   私有数据
+     -CPU、内存、磁盘、网卡流量等使用信息
+     -用户、进程等运行信息
+监控软件
+  系统监控命令
+    ps
+    uptime
+    free
+    swapon -s
+    df -h
+    ifconfig
+    netstat或ss
+    ping
+    traceroute 目标域名或IP	//路由监控，监控经过所有IP
+    iostat	//查看当前系统盘读写速度
+  自动化监控系统
+    Cacti
+       -基于SNMP协议的监控软件，强大的绘图能力
+       -做报警和状态检查需手写脚本，绘图能力强大
+       -插件少
+    Nagios
+       -基于Agent(代理程序)监控,强大的状态检查与报警机制
+       -插件极多，自己写监控脚本插入到Nagios非常方便
+       -支持邮件(默认)、威信、短信报警
+       -没有绘图功能，配置时修改配置文件
+    Zabbix
+       -基于多中监控机制，支持分布式监控
+Zabbix基础
+  简介
+   -Zabbix是一个高度集成的监控解决方案
+    -可以实现企业级的开源分布式监控
+   -Zabbix通过C/S模式采集监控数据
+   -Zabbix通过B/S模式实现Web管理
+  监控拓扑
+    监控服务器(C/S模式中的S)
+      -监控服务器可以通过SNMP或Agent采集数据
+      -数据可以写入MySQL、Oracle等数据库中
+      -服务器使用LNMP实现Web前端的管理
+    被监控主机(C/S模式中的C)
+      -被检控主机需要安装Agent
+      -常见的网络设备一般支持SNMP
+二、Zabbix监控服务
+  1.部署运行环境LNMP
+    安装源码nginx并运行服务
+    安装mysql并运行服务
+    安装php
+    测试LNMP环境
+  2.安装Zabbix软件
+    yum -y install net-snmp-devel curl-devel libevent(自行下载安装依赖包)
+    tar -xf zabbix
+    ./configure --prefix=/usr/local/zabbix(不指定时，安装的命令、配置都会分开存放) --enable-server(zabbix服务程序) --enable-proxy(zabbix代理服务器) --enable-agent --with-mysql --with-net-snmp --with-libcurl(增加模块)
+    make && make install
+  3.初始化Zabbix
+     3.1创建数据库与数据库账户
+      create database zabbix character set utf8;
+      grant all on zabbix.* to zabbix@"localhost" identified by 'zabbix';
+      cd /root/lnmp_soft/zabbix-3.4.4/database/mysql/  //压缩包下
+       需从后往前恢复,建立监控数据库
+      mysql -uzabbix -pzabbix zabbix < schema.sql
+      mysql -uzabbix -pzabbix zabbix < images.sql
+      mysql -uzabbix -pzabbix zabbix < data.sql
+     3.2创建zabbix php页面
+      cd /root/lnmp_soft/zabbix-3.4.4/frontends
+      cp -r php /usr/local/nginx/html/zabbix
+     3.3做初始化相关配置(修改配置文件、安装依赖软件包)
+      vim /etc/php.ini
+         post_max_size = 16M
+         max_execution_time = 300
+         max_input_time = 300
+         date.timezone = Asia/Shanghai
+        修改后重起php-fpm
+      vim /usr/local/nginx/conf/nginx.conf
+       http{
+        fastcgi_buffers 8 16k;  //缓存php生成的页面内容，8个16k
+        fastcgi_buffer_size 32k;  //缓存php生产的头部信息
+        fastcgi_connect_timeout 300;  //连接php超时时间
+        fastcgi_send_timeout 300;  //发送请求的超时时间
+        fastcgi_read_timeout 300;  //读取请求的超时时间
+          }
+        重起nginx
+        安装依赖包，需自行下载
+      rpm -ivh --nodeps php-bcmath-5.4.16-42.el7.x86_64.rpm php-mbstring-5.4.16-42.el7.x86_64.rpm
+      yum -y install php-gd php-xml php-ldap
+      systemctl restart php-fpm	//重起服务
+      chmod 777 /usr/local/nginx/html/zabbix/conf  //修改配置文件权限
+     3.4访问Web页面做初始化配置
+       用户名：admin
+       密码：zabbix
+  访问管理页面
+    1.修改管理员密码和语言
+      界面右上交
+    2.查看已有的监控模版
+      配置-->模版
+    3.查看已监控的主机
+      配置-->主机
+    4.查看监控信息
+      监测中-->最新数据信息
+三、运行Zabbix服务
+     1.修改配置文件/usr/local/zabbix/etc/zabbix_server.conf
+       LogFile=/tmp/zabbix_server.log  //日志文件
+       DBName=zabbix  //库名
+       DBUser=zabbix  //连接数据库的用户名
+       DBPassword=zabbix  //连接数据库的密码，默认未开启
+       DBHost=localhost  //默认使用本机数据库，未打开
+     2.运行脚本启动服务
+       cp misc/init.d/fedora/core/zabbix_server /etc/init.d/
+       chmod +x /etc/init.d/zabbix_server
+       sed -i '22s!/local!/local/zabbix!' /etc/init.d/zabbix_server  //修改运行命令的路径
+       useradd zabbix	//创建用户
+       /etc/init.d/zabbix_server start  //启动脚本
+       ss -ntul | grep 10051  //zabbix_server服务端口10051
+       若报错：
+       vim /tmp/zabbix_server.log  //查看日志文件
+       /etc/init.d/zabbix_server status  //查看状态信息
+   监控远端网站服务器主机192.168.2.100
+     1.配置被监控端：主机192.168.2.100
+       运行zabbix_agent(10050)
+       源码安装zabbix
+      yum -y install gcc pcre-devel	//源码编译依赖包
+      ./configure --prefix=/usr/local/zabbix --enable-agent  
+      make install
+      修改配置文件/usr/local/zabbix/etc/zabbix_agentd.conf
+      LogFile=/tmp/zabbix_agentd.log  //日志文件
+      Server=127.0.0.1,192.168.2.5  //允许访问本机服务的地址
+      ServerActive=192.168.2.5：10051  //监控服务器的IP和端口
+      启动服务
+       cp misc/init.d/fedora/core/zabbix_agentd /etc/init.d/
+       chmod +x /etc/init.d/zabbix_agentd
+       sed -i '22s!/local!/local/zabbix!' /etc/init.d/zabbix_agentd  //修改运行命令的路径
+       useradd zabbix	//创建用户
+       /etc/init.d/zabbix_agentd start  //启动脚本
+       ss -ntul | grep 10050  //zabbix_agentd服务端口10050
+     2.配置监控主机：192.168.2.5
+       登陆web页面
+       创建监控主机：配置-->主机-->创建主机-->添加模版-->可用性zbx变绿表示已监控到
+       查看监控主机：监测中-->最新数据-->主机群、主机、应用集-->显示具体监控项
+四、自定义Zabbix监控项目(监控系统用户数量)
+    1.配置被监控服务器
+      1.1启用自定义监控项功能
+        停止服务,修改配置文件/etc/init.d/zabbix_agentd stop
+      Include=/usr/local/zabbix/etc/zabbix_agentd.conf.d/*.conf  //自定义监控文件路径
+      UnsafeUserParameters=1  //启用自定义监控功能
+      1.2定义监控命令
+        vim /usr/local/zabbix/etc/zabbix_agentd.conf.d/test.conf
+        UserParameter=<key>,<shell cmd>
+        UserParameter=get,wc -l /etc/passwd | awk '{print $1}'
+      启动服务 
+      1.3查看命令输出结果
+        /usr/local/zabbix/bin/zabbix_get -s IP地址 -p 10050(端口) -k get(上面定义的名字)
+    2.配置监控服务器
+      2.1在命令行下测试是否调用被监控的自定义命令
+       /usr/local/zabbix/bin/zabbix_get -s IP地址 -p 10050(端口) -k get(定义的名字)
+      2.2定义新监控模版-->创建应用集-->创建监控项目,并指定使用的监控命令
+      创建名称，分组-->创建名称-->创建名称，键值(创建UserParameters时的名字)
+      2.3监控主机192.168.2.100，添加自定义监控模版
+      2.4查看监控信息
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Day06
+    
+一、Zabbix报警机制
+  1.概念
+    自定义监控默认不会自动报警，首页也不会提示错误，需配置触发器与报警动作才可以
+    1.1触发器(trigger)
+      -表达式，如内存不足，用户超过多少等
+      -当触发条件后，会导致一个触发事件
+      -触发事件会执行某个动作    
+    1.2动作(action)
+      -触发器的条件被触发后行为
+      -可以时发送邮件、也可以是重起某个服务等
+  2.案例：
+   2.1准备邮件服务和邮箱账号
+     查看postfix是否安装，查看端口25
+    echo 123 | mail -s 主题 收件人(zabbix)  //测试
+   2.2创建触发器
+     配置-->模版-->触发器-->创建触发器-->名称、严重性、表达式(监控项、功能(最新T值和N比较)、N)-->添加
+     表达式
+       -大多数函数使用秒作为参数，使用#代表不同含义
+      -avg,count,last,min and max还数支持额外的第二个参数time_shift(时间偏移量)
+       -允许从过去一段时间内引用数据
+      sum(600)  //600秒内所有值的总和
+      sum(#5)   //最后5个值的总和
+      last(20)  //最后20秒的值
+      last(#5)  //倒数第5个值
+      avg(1h,1d) //一天前的一小时的平均值
+   2.3创建动作
+     配置-->动作-->创建动作-->名称-->操作(指定做什么)-->操作类型(发消息、执行命令)、发送用户-->添加
+   2.4指定邮件服务器和收件人
+     发件人：管理-->报警媒介类型-->Email-->SMTP(localhost)、端口(25)、HELO(发送邮件署名)、SMTP电邮(发件人的邮箱zabbix@localhost) -->更新
+     收件人：管理-->用户-->Admin-->报警媒介-->添加(收件人邮箱)
+   2.5测试配置
+二、Zabbix进阶操作
+  1.自动发现
+    1.1概述
+      -当Zabbix需要监控的蛇别越来越多，手动添加监控设备越来越有挑战
+      -需要批量一次性添加一组监控主机
+    1.2自动发现可以实现
+      -自动发现、添加主机，自动添加主机到组
+      -自动连接模版到主机，自动创建监控项目与图形等
+    1.3流程
+      1.3.1创建自动发现规则
+       配置-->自动发现-->创建发现规则-->名称、IP范围、更新间隔、检查(类型、端口)-->添加
+     IP范围：192.168.2.1-254
+      1.3.2创建Action动作，说明发现主机后自动执行什么动作
+       配置-->动作-->事件源：自动发现-->创建-->名称、新的触发条件(IP地址范围)-->操作-->操作细节(操作类型：添加主机到群组、与模版关联)-->添加
+      1.3.3通过动作，执行添加主机，连接模版纳到主机等操作
+      1.3.4架设网站服务
+        -运行zabbix_agentd
+        -运行httpd服务
+      1.3.5查看是否监控了网站服务
+  2.主被动监控
+    2.1概述
+      主动和被动都是对被监控端主机而言的
+      默认zabbix采用的是被动监控
+        -被动监控:Server向Agent发起连接，发送监控key，Agent接收请求，响应监控数据
+        -主动监控:Agent向Server发起连接，Agent请求需要检测的监控项目列表，Server响应Agent发送一个items列表，Agent确认收到监控列表，TCP连接完成，会话关闭，Agent开始周期性的收集数据
+      区别:Server不用每次需要数据都连接Agent，Agent会自己收集数据并处理数据，Server仅需要保存数据即可
+      当监控主机达到一定量级后，Zabbix服务器会越来越慢，
+      此时，可以考虑使用主动监控，释放服务器的压力
+      另外，Zabbix也支持分布式监控，也是可以考虑的方案
+    2.2配置客户端主动模式
+      安装zabbix_agent
+      修改配置文件
+      vim /usr/local/zabbix/etc/zabbix_agentd.conf
+        # Server=127.0.0.1	//注释，允许谁监控本机
+        StartAgents=0	//禁用被动监控，不启用zabbix_agentd服务
+        ServerActive=192.168.2.5  //允许监控的主机
+        Hostname=ser77  //告诉监控服务器，是谁发的数据信息，一定要和zabbix服务器配置的监控主机名称一致
+        RefreshActiveChecks=120  //默认120s检测一次
+       启动主动监控服务
+         useradd zabbix
+         /usr/local/zabbix/sbin/zabbix_agentd
+         ps -C zabbix_agentd  //查看进程，没有端口
+         killall zabbix_agentd  //杀死进程
+     2.3配置监控服务器主动模式
+      2.3.1创建主动模式的监控模版
+        克隆模版：配置-->模版-->Template os linux-->全克隆，修改名称
+        修改监控模式：配置-->模版-->新克隆的监控项-->全选，批量更新-->更改类型为主动式,停用非主动式监控项
+      2.3.2添加监控主机
+        配置-->主机-->主机名称(与配置文件Hostname相同)、agented代理程序接口(IP0.0.0.0,端口0)-->添加模版
+      2.4查看配置
+  3.拓扑图与聚合图形 
+三、监控案例(自己编写监控脚本，监控时调用监控脚本)
+  1.监控Nginx
+   1.1部署nginx
+     yum -y install gcc pcre-devel openssl-devel zlib-devel
+     ./configure --with-http_stub_status_module
+     make && make install
+   1.2修改配置文件/usr/local/nginx/conf/nginx.conf
+     server { 
+        location /status { stub_status on; }  //启用状态模块
+      }
+   1.3书写脚本(监控nginx状态)
+     #!/bin/bash
+	case $1 in
+	active)
+	  curl -s http://localhost/status | awk '/Active/{print $NF}';;
+	waiting)
+	  curl -s http://localhost/status | awk '/Waiting/{print $NF}';;
+	accepts)
+	  curl -s http://localhost/status | awk 'NR==3{print $2}';;
+	esac
+   1.4开启zabbix自定义监控
+     vim /usr/local/zabbix/etc/zabbix_agentd.conf
+       UnsafeUserParameters=1
+       Include=/usr/local/zabbix/etc/zabbix_agentd.conf.d/*.conf
+      创建自定义命令文件
+       vim /usr/local/zabbix/etc/zabbix_agentd.conf.d/xxx.conf
+       UserParameter=key[*],脚本 $1  //$1读取[*]里的值
+   1.5测试自定义命令
+     /usr/local/zabbix/bin/zabbix_get -s 127.0.0.1 -p 10050 -k key[参数]
+   1.6配置监控服务器
+     创建监控模版：配置-->模版-->创建模版(自定义名称)
+     创建应用集(自定义名称)-->创建监控项目,并指定使用的监控命令-->创建名称，键值(创建UserParameters时的名字)、应用集
 
 
    
