@@ -231,6 +231,7 @@ Copy On Write，写时复制
 (8) 安装虚拟机磁盘扩展命令，当克隆虚拟机时，指定虚拟机磁盘大小后，虚拟机磁盘可以自动扩容
  yum -y install cloud-utils-growpart  //安装可以自动扩容的软件
  chmod 755 /etc/rc.local  //设置第一次开机自动扩容根目录
+ vim /etc/rc.local
  /usr/bin/growpart /dev/vda 1  //根分区扩容
  /usr/sbin/xfs_growfs /
  
