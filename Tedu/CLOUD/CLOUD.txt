@@ -194,6 +194,7 @@ Copy On Write，写时复制
 3.安装系统到cent7.img
  virt-manager --> 新建虚拟机 --> 网络安装 --> ftp://192.168.1.254/CentOS --> 内存2048，cpu2 --> 选择管理的或其他现有设备 /var/lib/libvirt/images/cent7.img --> 名称，选择网络
 4.进入安装向导
+语言English -> INSTALLATION DESTINATION => I will configure partitioning => 左上角的Done => 下拉菜单选Standard Partigion => 左下角的+号 => Mount point 填/，下面的capacity添2048，也就是把全部磁盘空间都分配给根分区。=> 点击Done的时候，选择Accept Changes。=> 取消KDUMP功能。
 5.初始化系统
 (1) 禁用Selinux /etc/selinux/config
 (2) 配置yum源
