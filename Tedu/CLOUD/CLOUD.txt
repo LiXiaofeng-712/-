@@ -287,17 +287,195 @@ if [ -n "$dns" ];then
 fi
 
 2.编写克隆虚拟机的脚本
- 
+#!/bin/bash
+read -p "vm number:" NUMBER
+COUNT=0
+FILE_PATH=/var/lib/libvirt/images
+
+if [ -z "$NUMBER" ];then
+  echo "请输入要克隆的数量！"
+  exit 1
+fi
+if [[ ! "$NUMBER" =~ ^[0-9]+$ ]];then
+  echo "请输入正确的数字！"
+  exit 2
+fi
+
+while [ $COUNT -lt $NUMBER ]
+do
+  let NUM++
+  reluse=`virsh list --all | grep cent7_node$NUM`
+  if [ -z "$reluse" ];then
+  qemu-img create -f qcow2 -b $FILE_PATH/.cent7.img $FILE_PATH/cent7_node$NUM 100G &> /dev/null
+  \cp /tmp/.node.xml /tmp/node.xml
+  sed -i "s/node/cent7_node$NUM/" /tmp/node.xml
+  virsh define /tmp/node.xml &> /dev/null
+  echo -e  "created cent7_node$NUM...\t\t\t\t\033[32m[Done]\033[0m"
+  let COUNT++
+  fi
+done
+
+
 四、虚拟设备管理
 
 
+########################################################################
+Day02
 
+早期：单机跑服务
+中期：因为单机性能得到了非常大的提升,如果还是单机跑一个服务,服务器的性能明显太过剩了.所以把很多服务器机中在一起，运行很多虚拟机，每台虚拟机运行一个服务，这就是虚拟化
+现在：云计算实现了按需使用、按使用计费。
 
+云计算分类
+1、IAAS:公有云、私有云、混合云。基础架构即服务，提供云主机(使用最多的)
+2、PAAS:平台即服务，提供中间组件
+3、SAAS:软件即服务，通过软件使用云厂商提供的服务，比如百度云盘、杀毒软件
 
+必备知识点
+OpenStack是IAAS的解决方案，主要组件有：
+Horizon:web管理平台，通过图形界面管理各种服务
+Keytone:为其他服务提供集中认证，多种身份认证，如密码认证等
+Neutron:网络服务，可以创建网络、交换机、路由器等
+Cinder:提供云磁盘，可以快照进行数据备份等
+Nova:实现云主机管理的，openstack中虚拟机叫实例，如开关机等
+Glance:镜像的管理
 
+安装openstack
+一、准备安装环境
+1、在物理主机上配置yum源：centos7镜像、OPS10镜像、EXTRA镜像
 
+#!/bin/bash
+cd /var/ftp/osp10
+for i in *
+do
+  if [ -d $i ];then
+     cat << EOF >> /etc/yum.repos.d/ops10.repo
+[$i]
+name=$i
+baseurl=ftp://192.168.4.254/osp10/$i
+enabled=1
+gpgcheck=0
+EOF
+  fi
+done
+2、DNS暂时不用,使用hosts代替
+3、在物理主机上配置NTP服务器
+(1)安装
+ yum -y install chrony
+(2)修改配置文件/etc/chrony.conf
+  server ntp1.aliyun.com iburst
+  allow 0/0
+(3)启动服务
+  systemctl start chronyd
+  systemctl enable chronyd
+二、创建一台虚拟机，用于安装openstack
+1、虚拟机内存设置为9216MIB
+2、原有的网卡，网络连接改到private1
+3、再添加一张网卡，连接到private2，设备型号时virtio
+4、配置IP地址
+eth0:192.168.4.1/24  192.168.4.254 192.168.4.254
+eth1:192.168.2.1/24
+ ifdown eth0;ifup eth0;ifdown eth1;ifup eth1
+ ping -c 2 192.168.4.254
+ ping -c 2 192.168.2.254
+5、配置yum源
+[local_repo]
+name=CentOS-$releasever - Base
+baseurl="ftp://192.168.4.254/centos7-1708"
+enabled=1
+gpgcheck=0
 
+[local_extras]
+name=extras
+baseurl="ftp://192.168.4.254/rhel7-extras"
+enabled=1
+gpgcheck=0
 
+[1local_devtools-rpms]
+name=devtools-rpms
+baseurl="ftp://192.168.4.254/rhel7osp-10/rhel-7-server-openstack-10-devtools-rpms"
+enabled=1
+gpgcheck=0
+
+[2local_optools-rpms]
+name=optools-rpms
+baseurl="ftp://192.168.4.254/rhel7osp-10/rhel-7-server-openstack-10-optools-rpms"
+enabled=1
+gpgcheck=0
+
+[3local_rpms]
+name=rpms
+baseurl="ftp://192.168.4.254/rhel7osp-10/rhel-7-server-openstack-10-rpms"
+enabled=1
+gpgcheck=0
+
+[4local_tools-rpms]
+name=tools-rpms
+baseurl="ftp://192.168.4.254/rhel7osp-10/rhel-7-server-openstack-10-tools-rpms"
+enabled=1
+gpgcheck=0
+
+[5local_mon-rpms]
+name=mon-rpms
+baseurl="ftp://192.168.4.254/rhel7osp-10/rhel-7-server-rhceph-2-mon-rpms"
+enabled=1
+gpgcheck=0
+
+[6local_osd-rpms]
+name=osd-rpms
+baseurl="ftp://192.168.4.254/rhel7osp-10/rhel-7-server-rhceph-2-osd-rpms"
+enabled=1
+gpgcheck=0
+
+[7local_rhceph-2-tools-rpms]
+name=rhceph-2-tools-rpms
+baseurl="ftp://192.168.4.254/rhel7osp-10/rhel-7-server-rhceph-2-tools-rpms"
+enabled=1
+gpgcheck=0
+
+[8local_agent-rpms]
+name=agent-rpms
+baseurl="ftp://192.168.4.254/rhel7osp-10/rhel-7-server-rhscon-2-agent-rpms"
+enabled=1
+gpgcheck=0
+
+[9local_installer-rpms]
+name=installer-rpms
+baseurl="ftp://192.168.4.254/rhel7osp-10/rhel-7-server-rhscon-2-installer-rpms"
+enabled=1
+gpgcheck=0
+
+[10local_rhscon-2-main-rpms]
+name=rhscon-2-main-rpms
+baseurl="ftp://192.168.4.254/rhel7osp-10/rhel-7-server-rhscon-2-main-rpms"
+enabled=1
+gpgcheck=0
+6、配置名称解析
+192.168.4.1  node1.tedu.cn node1
+192.168.4.2  node2.tedu.cn node2
+192.168.4.254 host.tedu.cn host
+7、安装额外软件包
+ yum -y install qemu-kvm libvirt-client libvirt-daemon libvirt-daemon-driver-qemu python-setuptools
+8、注意：逻辑卷不用做
+9、导入签名
+ rpm --import ftp://192.168.4.254/centos7-1708/RPM-GPG-KEY-CentOS-7
+10、安装openstack部署工具packstack
+ yum -y install openstack-packstack
+11、在安装openstack过程中有大量的问题需要回答，可以提前生成应答文件
+ packstack --gen-answer-file 自定义名称(.ini文件打开会有颜色)
+ 报错：查看dns配置
+ 修改应答文件
+ 11 CONFIG_DEFAULT_PASSWORD=Taren1  //密码
+  42 CONFIG_SWIFT_INSTALL=n
+  75 CONFIG_NTP_SERVERS=192.168.4.254  //时间服务器的地址
+ 840 CONFIG_NEUTRON_ML2_TYPE_DRIVERS=flat,vxlan   //驱动类型
+ 876 CONFIG_NEUTRON_ML2_VXLAN_GROUP=239.1.1.5  
+//设置组播地址,最后一个随意不能为0和255,其他固定
+ 910 CONFIG_NEUTRON_OVS_BRIDGE_MAPPINGS=physnet1:br-ex  //物理网桥的名称
+ 936 CONFIG_NEUTRON_OVS_TUNNEL_IF=eth1
+1179 CONFIG_PROVISION_DEMO=n   //DEMO是否测试
+12、安装Openstack
+ packstack --answer-file 应答文件
 
 
 
