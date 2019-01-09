@@ -1,0 +1,311 @@
+Day01
+
+一、KVM简介
+
+虚拟化：
+红帽:KVM、RHEV
+VMware:workstation、vSphere
+微软:VPC
+Oracle:virtualBox
+Citrix:Xen
+ISP英特网服务提供商
+
+需开启BIOS支持虚拟化管理
+
+安装虚拟化服务器的平台
+KVM/QEMU/LIBVIRTD
+ -KVM是linux内核的模块，它需要CPU的支持，采用硬件辅助虚拟化技术Intel-VT，AMD-V，内存的相关如Intel的EPT和AMD的RVI技术
+ -QEMU是一个虚拟化的仿真工具，通过ioctl与内核kvm交互完成对硬件的虚拟化支持
+ -Libvirt是一个对虚拟化管理的接口和工具，提供用户端程序virsh，virt-install，virt-manager，virt-view与用户交互
+必备软件
+ -qemu-kvm:为kvm提供底层仿真支持
+ -libvirt-daemon：libvirtd守护进程，管理虚拟机
+ -libvirt-client：用户端软件，提供客户端管理命令
+ -libvirt-daemon-driver-qemu：libvirtd连接qemu的驱动
+可选功能
+ -virt-install	//系统安装工具
+ -virt-manager	//图形管理工具
+ -virt-v2v	//虚拟机迁移工具
+ -virt-p2v	//物理及迁移工具
+ 
+KVM虚拟机的组成
+虚拟机的组成
+ -内核虚拟化模块(KVM)
+ -系统设备仿真(QEMU)
+ -虚拟机管理程序(LIBVIRT)
+ 
+ -一个XML文件(虚拟机配置声明文件)
+ -位置/etc/libvirt/qemu
+ -一个磁盘镜像文件(虚拟机的硬盘)
+ -位置/var/lib/libvirt/images/
+ 
+管理KVM平台
+virsh命令工具
+1.查看KVM节点(服务器)信息
+ -virsh nodeinfo
+2.列出虚拟机
+ -virsh list
+3.列出所有虚拟机,常用
+ -virsh list --al
+4.列出虚拟网络
+ -virsh net-list [--all]
+5.查看指定虚拟机
+ -virsh dominfo 虚拟机名
+6.启动/重起/关闭指定虚拟机，常用
+ -virsh start/reboot/shutdown 虚拟机名
+7.强制关闭指定的虚拟机
+ -virsh destroy 虚拟机名
+8.设置开机自启
+ -virsh autostart 虚拟机名
+9.取消开机自启
+ -virsh autostart --disable 虚拟机名
+10.取消定义的虚拟机(删除xml文件)
+ -virsh undefine 虚拟机名
+virsh	//进入virsh使用help查看命令帮助
+ctrl+n //脚本中可以补全用过的单词
+
+ yum grouplist	//查看可以安装组的软件包
+ yum groupinstall 包名	//安装一组软件包
+ 
+虚拟化中，称呼物理主机为Host，虚拟主机为Guest
+虚拟机的硬盘：
+1.虚拟机硬盘，在物理机上值是一个文件
+2.磁盘文件格式可以是RAW，也可以是QCOW2
+3.RAW采用预分配空间方式，虚拟机磁盘20G，物理机就会产生20G的文件，所以效率高，占用空间大，不支持压缩、后端盘复用、快照
+4.QCOW2采用延迟分配方式，开始磁盘文件在物理机上很小，后续会自动增长，效率低，占用空间小，支持压缩、后端盘复用(克隆，后端有一台模版机，在它基础上进行克隆)、快照
+5.虚拟机磁盘目录/var/lib/libvirt/images/
+ -ls -llh /var/lib/libvirt/images/.rh7_template.img
+6.查看模版盘(后端盘)信息
+ -qemu-img info .rh7_template.img
+7.基于后端盘克隆新的虚拟机
+(1)创建前端盘
+ qemu-img create -f(文件类型) qcow2 -b(后端盘) .rh7_template.img 新虚拟机名
+(2)查看前端盘信息
+ qemu-img info 新虚拟机名
+(3)利用新建的前端盘生成虚拟机
+ virt-manager-->导入现有磁盘镜像
+8.qemu-img命令
+ 支持的磁盘格式：raw，qcow2,vdi,vmdk等
+ 命令格式：qemu-img 命令 参数 块文件名称 大小
+ 常用命令有：
+  -create  //创建一个磁盘
+  -convert //转换磁盘格式
+  -info    //查看磁盘信息
+  -snapshot //管理磁盘快照
+ 常用参数：
+  - -f 格式	//定义文件格式
+  - -b 磁盘文件  //使用后端模版文件
+
+COW技术原理
+Copy On Write，写时复制
+ -直接映射原始盘的数据内容
+ -当原始盘的旧数据有修改时，在修改之前将旧数据存入前端盘
+ -对前端盘的修改不回写到原始盘
+
+二、Virsh管理
+1.进入管理命令界面
+ -virsh
+2.连接远程虚拟主机
+ -connect qemu+ssh://user@ip:port/system
+3.通过virt-manage连接远程虚拟机
+ -yum -y install openssh-askpass
+ -virt-manager --> 文件 --> 添加连接
+
+虚拟网络管理
+1.图形界面
+ virt-manager --> 编辑 --> 连接详情 --> 虚拟网络
+2.激活默认网络default
+ 修改自动启动为：引导时，需启动防火墙
+(1) default网络默认开启nat功能，连接该网络上的虚拟机可以接入互联网
+ (2) 物理主机使用virbr0这块网卡，连到了default网络
+ (3) 虚拟机网卡，如果连接到default网络就可以连接互联网，将网络连接改为default，default默认开启DHCP功能
+ (4) 如果虚拟机上有virbr0，down掉它
+   ifconfig virbr0 down
+   brctl delbr virbr0  //彻底删除virbr0
+ (5) 激活虚拟机网卡
+   ifup eth0
+ 
+自行创建网络，允许虚拟机通过自己创建的网络访问互联网
+1.将default网络的配置文件导出，将其当作模版文件进行修改
+ /etc/libvirt/qemu/networks/default.xml 
+ virsh net-dumpxml default  > /tmp/default.xml  //导出default网络内容
+2.修改配置default.xml
+<network>
+  <name>vbr</name>       //vbr为虚拟网络的名字
+  <bridge name="vbr"/>	//ifconfig看到的名字
+  <forward mode="nat"/>  //网络连接模式
+  <ip address="192.168.1.254" netmask="255.255.255.0">  //ip为192.168.1.254
+    <dhcp>
+      <range start="192.168.1.100" end="192.168.1.200"/>  //dhcp范围是100-200
+    </dhcp>
+  </ip>
+</network>
+3.利用配置文件生成网络
+ virsh net-define /tmp/default.xml
+4.激活vbr网络，并设置开机自启
+ virsh net-start vbr
+ virsh net-autostart vbr
+ virsh net-list [--all]  //查看虚拟网络
+ virsh net-destroy vbr  //停止虚拟网络
+ virsh net-edit vbr  //修改vbr网络配置
+
+通过xml文件克隆虚拟机
+1.创建前端盘
+ cd /var/lib/libvirt/images/
+ qemu-img create -f qcow2 -b .rh7_template.img myrh7_2.img
+2.导出现有虚拟机配置文件，作为即将克隆虚拟机的配置文件
+ virsh dumpxml 虚拟机名 > /tmp/myvm.xml
+3.修改myvm.xml
+ 第1行：删除id=''
+ 第2行：修改虚拟机名字
+ 第3行uuid删除
+ 第36行左右：把虚拟机磁盘名改为第一步创建的磁盘名
+ 第73行左右：删除mac地址
+ 第90行左右：删除<channel type='unix'>...</channel>
+4.使用myvm.xml生成新的虚拟机
+ virsh define /tmp/myvm.xml
+5.启动虚拟机
+ virsh start 虚拟机名
+ virsh list
+
+三、自定义虚拟机
+创建教学环境
+(一)创建一个虚拟网络vbr，能够访问互联网
+(二)安装模版虚拟机
+  1.生成一个qcow2格式的磁盘文件
+  2.将系统安装在第一步创建的磁盘文件上
+  3.初始化系统(配置yum/firewalld/selinux等o)
+(三)通过模版机克隆新的虚拟机
+  1.生成一个虚拟机的xml文件
+  2.修改xml文件，用于克隆虚拟机
+  3.利用改好的xml文件生成新的虚拟机
+
+1.把centos7光盘挂载到/var/ftp/centos7
+ yum -y install vsftpd
+ systemctl start vsftpd
+ systemctl enable vsftpd
+ mkdir /var/ftp/centos7
+ mount 光盘路径 /mnt
+ cp /mnt/* /var/ftp/centos7
+ 或者自动挂载：光盘文件系统类型iso9660
+2.为模版机生成磁盘镜像文件
+ cd /var/lib/libvirt/images/
+ qemu-img create -f qcow2 cent7.img 2G
+3.安装系统到cent7.img
+ virt-manager --> 新建虚拟机 --> 网络安装 --> ftp://192.168.1.254/CentOS --> 内存2048，cpu2 --> 选择管理的或其他现有设备 /var/lib/libvirt/images/cent7.img --> 名称，选择网络
+4.进入安装向导
+5.初始化系统
+(1) 禁用Selinux /etc/selinux/config
+(2) 配置yum源
+  cd /etc/yum.repos.d/
+  mkdir repoback
+  mv *.repo repoback
+  vi local.repo
+    [server]
+    name=server
+    baseurl=ftp://192.168.1.254/CentOS
+    enabled=1
+    gpgcheck=0
+  ifup eth0
+  yum repolist
+(3) 删除不必要的软件包
+ yum -y remove NetworkManager-* firewalld-* python-firewall
+(4) 安装常用的软件包
+ yum -y install lftp net-tools vim-enhanced bridge-utils psmisc
+(5) 修改网卡默认配置，把个性化信息移除
+ vim /etc/sysconfig/network-scripts/ifcfg-eth0
+   DEVICE=eth0
+   ONBOOT=yes
+   IPV6INIT=no
+   TYPE=Ethernet
+   BOOTPROTO=dhcp
+(6) 禁用空路由，防止机器获取169.254.x.x的地址(若客户机选择自动获取地址，又没有服务器分配，就会获得默认的169.254.x.x地址)
+ vim /etc/sysconfig/network
+   NOZEROCONF=yes
+(7) 修改内核参数，作用：网卡一定叫ethX，虚拟机可以支持virsh console访问
+ vim /etc/default/grub
+   GRUB_CMDLINE_LINUX="biosdevname=0 net.ifnames=0 console=ttyS0 rhgb quiet"  //设置网卡名一定是eth0，允许console方式访问
+   GRUB_DISABLE_LINUX_UUID="true"	//禁用使用uuid方式挂载分区
+   GRUB_ENABLE_LINUX_LABEL="true"	//启用卷标挂载分区
+ grub2-mkconfig -o /boot/grub2/grub.cfg  //
+(8) 安装虚拟机磁盘扩展命令，当克隆虚拟机时，指定虚拟机磁盘大小后，虚拟机磁盘可以自动扩容
+ yum -y install cloud-utils-growpart  //安装可以自动扩容的软件
+ chmod 755 /etc/rc.local  //设置第一次开机自动扩容根目录
+ /usr/bin/growpart /dev/vda 1  //根分区扩容
+ /usr/sbin/xfs_growfs /
+ 
+ virt-sysprep -d 虚拟机名   //关闭虚拟机后执行信息清理工作
+ yum search 命令	//搜索产生命令的包
+===================模版机初始化完成========================
+如果虚拟机已经关机(或者模版机配置春先故障无法启动),可以通过guestmount在物理机上挂载虚拟机的磁盘
+guestmount -a 虚拟机.img磁盘路径 -i 本地目录
+
+安装git
+yum install -y git
+命令 git clone git://124.207.192.18/nsd1809.git
+nsd1809中有xml模版文件
+
+手工克隆虚拟机
+1.创建前端盘
+  cd /var/lib/libvirt/images
+  qemu-img create -f qcow2 -b cent7.img cent7node1.img 100G
+2.修改虚拟机的配置文件
+  cp /root/nsd1809/node.xml /tmp
+  sed -i '/\<name\>/s/node/cent7node1/' /tmp/node.xml
+  sed -i '/\<source\>/s/node\.img/cent7node1\.img/' /tmp/node.xml
+3.生成虚拟机
+  virsh define /tmp/node.xml
+  virsh start cent7node1
+
+作业:
+1.编写配置网卡IP地址的脚本
+#!/bin/bash
+
+read -p "interface:" ifname
+read -p "ip address:" ipaddr
+read -p "prefix:" prefix
+read -p "gateway:" gateway
+read -p "dns:" dns
+
+ipfile=/etc/sysconfig/network-scripts/ifcfg-$ifname
+
+cat << !!! > $ipfile
+DEVICE=$ifname
+ONBOOT=yes
+BOOTPROTO=none
+IPV6INIT=no
+IPADDR=$ipaddr
+PREFIX=$prefix
+!!!
+
+if [ -n "$gateway" ];then
+  sed -i "\$aGATEWAY=$gateway" $ipfile
+fi
+
+if [ -n "$dns" ];then
+  sed -i "\$aDNS2=$dns" $ipfile
+fi
+
+2.编写克隆虚拟机的脚本
+ 
+四、虚拟设备管理
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
