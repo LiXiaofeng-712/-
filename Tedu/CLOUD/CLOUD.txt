@@ -496,7 +496,7 @@ openstack安装遇到的问题:
  ONBOOT=yes
  NM_CONTROLLED=no
  IPADDR=192.168.4.1
- PREXFIX=24
+ PREFIX=24
  GATEWAY=192.168.4.254
  DEVICE=br-ex
  NAME=br-ex
