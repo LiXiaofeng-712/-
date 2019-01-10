@@ -479,6 +479,150 @@ gpgcheck=0
 12、安装Openstack
  packstack --answer-file 应答文件
 
+openstack安装遇到的问题:
+1、磁盘空间不足；磁盘没有自动扩容
+ LANG=en_US.UTF-8
+ df -h  //查看
+ /usr/bin/growpart /dev/vda 1
+ /usr/sbin/xfs_growfs /
+2、yum源问题，软件包不兼容，手动安装
+3、网络,应答文件网桥名错
+4、Cannot allocate memory，内存不足
+5、ntp时间不同步，chronyc sources -v  查看可用ntp服务
+
+配置OVS：开放的虚拟交换机
+1、为br-ex网络配置IP地址，将eth0地址写到br-ex上
+ vim /etc/sysconfig/network-scripts/ifcfg-br-ex
+ ONBOOT=yes
+ NM_CONTROLLED=no
+ IPADDR=192.168.4.1
+ PREXFIX=24
+ GATEWAY=192.168.4.254
+ DEVICE=br-ex
+ NAME=br-ex
+ DEVICETYPE=ovs
+ OVSBOOTPROTO=static
+ TYPE=OVSBridge
+2、修改eth0配置文件，使之成为br-ex的一个接口
+ vim /etc/sysconfig/network-scripts/ifcfg-eth0
+ DEVICE=eth0
+ NAME=eth0
+ DEVICETYPE=ovs
+ TYPE=OVSPort
+ OVS_BRIDGE=br-ex
+ ONBOOT=yes
+ BOOTPROTO=none
+3、重起服务
+ systemctl restart network
+不成功执行ifdown eth0;ifdown br-ex;ifup eth0;ifup br-ex
+
+Horizon
+1、web服务有一个bug，需要修改apache配置文件，否则有内部错误
+ vim /etc/httpd/conf.d/15-horizon_vhost.conf
+ 在WSGIProcessGroup apache下加
+ WSGIApplicationGroup %{GLOBAL}
+ systemctl restart httpd
+访问出现问题，查看/etc/hosts文件和/etc/httpd/conf.d/15-horizon_vhost.conf
+
+访问http://192.168.4.1
+账户：admin
+密码：cat /root/keystonerc_admin
+
+2、创建项目
+项目：一组隔离的资源，可以为你的每个客户创建一个项目，在早期的版本里，项目project也被称作租户tenant
+openstack安装好之后，默认已经创建了两个项目。一个项目名为admin，是给管理员账号admin使用的项目；还有一个名为services的项目，它服务于openstack的所有组件。
+3、通过命令访问openstack，首先要初始化环境变量
+ source /root/keystonerc_admin
+4、项目管理相关命令
+ openstack project list  //显示项目列表
+ openstack project show 项目名	//显示项目详细信息
+5、创建项目
+ openstack project create 项目名
+6、禁用项目
+ openstack project set --disable 项目名
+7、激活项目
+ openstack project set --enable 项目名
+
+########################################################################
+Day03
+
+用户管理
+1、admin用户创建出来的普通用户，需要为其指定他能够访问的项目，这个用户成为了这个项目的管理员
+角色：admin管理员、reselleradmin代理商、_member_租户
+
+安装管理openstack服务的工具
+ yum -y install openstack-utils
+ openstack-status 查看openstack服务的状态，状态如果是active表示活跃，inactive表示不活跃，不活跃不一定有问题，但是fail一定是有问题
+ openstack-server restart  //重起openstack所有服务
+
+命令管理用户
+openstack user create --password 密码 用户名  //创建用户及密码
+openstack user set --email 用户名@xxx 用户名  //给用户添加邮箱
+openstack user list	//列出所有用户
+openstack user show 用户  //查看用户详细信息
+openstack role add --user 用户 --project 项目 角色 //指定用户访问项目和角色
+openstack role list --project 项目 --user 用户   //查看用户在项目中的角色
+openstack user set --disable 用户名  //禁用此用户
+openstack user set --enable 用户名  //启用此用户
+openstack user set --password 新密码 用户   //修改用户密码
+openstack role remove --project 项目 --user 用户 角色  //将用户从某项目中移除
+openstack user delete 用户  //删除用户
+
+配额管理
+vcpu:指整个项目加起来所有的虚拟机加起来，一共可以使用多少虚拟cpu
+云主机数量：项目以供可以创建多少主机
+卷：一共可以创建多少块存储
+内存：所有虚拟机加起来可以使用多少内存
+
+云主机类型：就是创建的云主机资源模版
+云主机类型参数
+ name:云主机类型名称
+ ID:云主机类型ID，系统会自动生成一个uuid
+ VCPUs:虚拟CPU数目
+ RAM(MB):内存大小
+ Root disk(GB):外围磁盘大小。如果希望使用本地磁盘，设置为0
+ 临时磁盘：第二个外围磁盘
+ swap磁盘：交换磁盘大小
+
+镜像管理：指虚拟磁盘文件，已经安装了可启动的操作系统
+Glance磁盘格式
+ raw：非结构化磁盘镜像格式
+ vhd：VMware、Xen、Microsoft、VirtualBox等均支持的通用磁盘格式
+ vmdk：是Vmware的虚拟机磁盘格式
+ vdi：VirtualBox虚拟机和QEMU支持磁盘格式
+ iso：光盘数据内容的归档格式
+ qcow2：QEMU支持的磁盘格式。空间自动扩展，并支持写是复制conpy-on-wirte
+镜像容器格式
+ bare：镜像中没有容器或元数据封装
+ ovf：一种开源的文件规范，描述了一个开源、安全、有效、可拓展的便携式虚拟打包以及软件分布格式
+ ova：OVA归档文件
+ aki：亚马逊内核镜像
+ ami：亚马逊主机镜像
+
+网络管理：切换用户创建网络
+Openstack网络工作原理
+ 实例被分配到子网中，已实现网络连通性
+ 每个项目可以有一个多个子网
+ 在红帽的Openstack平台中，Openstack网络服务是缼省的网络选项，Nova网络服务作为备用
+ 管理员能够配置丰富的网络，将其他Openstack服务连接到这些网络接口上
+ 每个项目都能拥有多个私有网络，各个项目的私有网络互相不受干扰
+网络类型
+ 项目网络：有Neutron提供的项目内部网络，网络间可用VLAN隔离
+ 外部网络：可以让虚拟机接入外部网络，但需要配置浮动IP地址
+ 提供商网络：将实例连接到现有网络，实现虚拟机实例与外部系统共享同一二层网络
+
+浮动IP地址
+作用：
+ 浮动IP地址用于从外界访问虚拟机实例
+ 浮动IP地址只能从现有浮动IP地址池中分配
+ 创建外部网络时，浮动IP地址池被定义
+ 虚拟机实例启动后，可以为其关联一个浮动IP地址
+ 虚拟机实例也可以解除IP地址绑定
+ 解除绑定后，在绑定时，不保证绑定原来的IP地址
+
+安全管理
+
+实例管理
 
 
 
