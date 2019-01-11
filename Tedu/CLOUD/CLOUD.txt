@@ -467,14 +467,15 @@ gpgcheck=0
  packstack --gen-answer-file 自定义名称(.ini文件打开会有颜色)
  报错：查看dns配置
  修改应答文件
- 11 CONFIG_DEFAULT_PASSWORD=Taren1  //密码
-  42 CONFIG_SWIFT_INSTALL=n
+  11 CONFIG_DEFAULT_PASSWORD=Taren1  //密码
+  42 CONFIG_SWIFT_INSTALL=n   //无存储对象,不需要安装
   75 CONFIG_NTP_SERVERS=192.168.4.254  //时间服务器的地址
+  98 CONFIG_COMPUTE_HOST=192.168.4.1  //指定安装openstack的nova主机，多台用逗号隔开
+ 102 CONFIG_NETWORK_HOST=192.168.4.1  //指定安装ovs网桥的主机(所有nova主机都要装,实际开启vxlan功能)，多台用逗号隔开
  840 CONFIG_NEUTRON_ML2_TYPE_DRIVERS=flat,vxlan   //驱动类型
- 876 CONFIG_NEUTRON_ML2_VXLAN_GROUP=239.1.1.5  
-//设置组播地址,最后一个随意不能为0和255,其他固定
+ 876 CONFIG_NEUTRON_ML2_VXLAN_GROUP=239.1.1.5  //设置组播地址,最后一个随意不能为0和255,其他固定
  910 CONFIG_NEUTRON_OVS_BRIDGE_MAPPINGS=physnet1:br-ex  //物理网桥的名称
-  921 CONFIG_NEUTRON_OVS_BRIDGE_IFACES=br-ex:eth0   //br-ex桥的名称与eth0连接，管理eth0,网桥与哪个物理网卡连接
+ 921 CONFIG_NEUTRON_OVS_BRIDGE_IFACES=br-ex:eth0   //br-ex桥的名称与eth0连接，管理eth0,网桥与哪个物理网卡连接
  936 CONFIG_NEUTRON_OVS_TUNNEL_IF=eth1
 1179 CONFIG_PROVISION_DEMO=n   //DEMO是否测试
 12、安装Openstack
@@ -633,9 +634,51 @@ Openstack网络工作原理
 创建云主机：
 1.使用admin账户创建项目
 2.创建用户并添加到项目
-3.使用创建用户创建镜像、网络(内网、外网)
+3.使用创建用户创建镜像、网络(内网、外网(与br-ex地址相同网段))
 4.切换admin用户将外王设置为外部网络
-5.切回项目用户创建路由、安全组规则(设置访问协议权限)、浮动IP(允许外部访问云主机)、创建云主机
+5.切回项目用户创建路由、安全组规则(设置访问协议权限)、浮动IP(允许外部访问云主机)、创建云主机(源:不用创建新卷)
+
+losetup -a  //查看卷组中物理磁盘的路径
+git clone git://124.207.192.18/nsd1809.git  //李欣老师存放文件
+git pull  //更新网络数据到本地
+
+openstack所有节点都需要装nova节点
+安装nova
+1、创建一个虚拟机100G磁盘，2块网卡，内存(openstack 9G，nova01 6G)
+2、扩容磁盘
+3、配置IP及主机名 ifcfg-eth0  /etc/hosts
+4、检查时间同步  chronyc sources -v
+5、检查DNS域名解析服务  /etc/resolv.conf(search需放入最后一行，搜索子域)
+6、配置yum源(12源  10731包)
+ yum makecache   //清空缓存
+7、安装依赖软件包  
+ qemu-kvm 
+ libvirt-daemon 
+ libvirt-client 
+ libvirt-daemon-driver-qemu 
+ python-setuptools
+ nova主机安装完毕！
+8、在openstack上修改应答文件
+  98 CONFIG_COMPUTE_HOST=192.168.4.1,IP,...  //添加nova节点IP地址
+ 102 CONFIG_NETWORK_HOST=192.168.4.1,IP,...  //添加nova节点IP地址
+9、重新运行openstack,为nova节点安装相应配置   packstack --answer-file answer.ini
+
+<<  重定向终止标志
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
