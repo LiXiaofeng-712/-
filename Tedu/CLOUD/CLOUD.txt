@@ -474,6 +474,7 @@ gpgcheck=0
  876 CONFIG_NEUTRON_ML2_VXLAN_GROUP=239.1.1.5  
 //设置组播地址,最后一个随意不能为0和255,其他固定
  910 CONFIG_NEUTRON_OVS_BRIDGE_MAPPINGS=physnet1:br-ex  //物理网桥的名称
+  921 CONFIG_NEUTRON_OVS_BRIDGE_IFACES=br-ex:eth0   //br-ex桥的名称与eth0连接，管理eth0,网桥与哪个物理网卡连接
  936 CONFIG_NEUTRON_OVS_TUNNEL_IF=eth1
 1179 CONFIG_PROVISION_DEMO=n   //DEMO是否测试
 12、安装Openstack
