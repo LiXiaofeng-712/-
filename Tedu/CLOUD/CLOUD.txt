@@ -665,8 +665,19 @@ openstack所有节点都需要装nova节点
 
 <<  重定向终止标志
 
+1006页面不显示
+所有安装openstack主机上,将此处显示主机名,加入到/etc/resolv.conf中
+vim /etc/nova/nova.conf
+8465:vncserver_proxyclient_address=主机名
 
-
+LVS
+NAT模式弊端:
+后端rip网关地址必须指向dip
+所有数据都要经过lvs,lvs服务器压力大
+DR模式
+TUN模式
+不实用
+FULL-NAT模式
 
 
 
