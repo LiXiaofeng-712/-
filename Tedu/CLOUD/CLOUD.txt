@@ -679,13 +679,154 @@ TUN模式
 不实用
 FULL-NAT模式
 
+#########################################################################
+Day05
 
+一、Docker概述
+什么是容器
+ 介于rpm包和虚拟机之间
+ 容器技术已经成为应用程序封装和交付的核心技术
+容器技术的核心组成：
+ CGroups(Control Groups)-资源管理
+ NameSpace-进程隔离
+ SELinux安全
+由于是在物理机上实施隔离，启动一个容器，可以像启动一个进程一样快速
 
+什么是Docker
+ 是完整的一套容器管理系统
+ 提供了一组命令，让用户更加方便直接地使用容器技术，而不需要过多的关心底层内核技术
 
+感受docter容器隔离技术：
+1.创建一个文件 mkdir /var/vroot
+2.安装bash和命令 yum install --install=/var/vroot(指定安装路径) bash coreutils
+3.执行chroot	chroot /var/vroot
+4.测试chroot
+ 新增用户，密码 useradd uu,passwd uu
+ 拷贝本机shadow和passwd文件到/var/vroot/etc下
+5.修改ssh配置文件
+ match user uu
+ chrootdirectory /var/vroot
+6.再远程连接会到/var/vroot下
 
+Docter六大隔离空间技术
+ 文件系统隔离空间
+ 主机名隔离空间
+ 网络命令隔离空间
+ 用户认证隔离空间
+ 进程隔离空间
+ 信号向量隔离空间
+ 
+Docter优点：
+ 相比于传统的虚拟化技术，容器更加简洁高效
+ 传统虚拟机需要给每个vm安装操作系统，容器不需要，只是一个进程
+ 容器使用的共享公共库和程序
+Docter缺点：
+ 容器的隔离性没用虚拟化强
+ 共用linux内核，安全性有先天缺陷
+ SELinux难以驾驭
+ 监控容器和容器排错是挑战
+ 
+二、部署Docker
+安装前准备
+ 需要64位操作系统
+ 至少RHEL7以上的版本，针对内核3.10以上
+ 关闭防火墙(不是必须的，针对熟练人员)
+ systemctl stop firewalld 	//停止此服务
+ systemctl mask firewalld	//屏蔽此服务
+安装Docker
+ docker-engine
+ docker-engine-selinux
+启动服务
+ systemctl start docker //启动服务后ifconfig会有docker0的网卡
+ docker version  //查看docker版本
+ 
+三、Docker镜像
+什么是镜像
+ 在Docker中容器是基于镜像启动的
+ 镜像是启动容器的核心
+ 镜像采用分层设计(基于多层创建前端盘，以下的所有后端盘都不可删除)
+ 使用快照的COW技术，确保底层数据不丢失
+ 
+镜像的操作
+ REPOSITORY:TAG  //镜像的表示方式，名字+标签(两者单独都有可能重复，一起不会重复)
+ docker help images/...  //查看具体帮助
+ docker images  //查看docker镜像
+ docker search 容器名称  //去官网寻找改服务的容器
+ docker pull 查找出来的镜像名  //下载官方镜像
+ docker push 镜像名	//上传镜像(需要在官网有账号)
+ 
+ docker save 镜像名:标签 > xx.tar  //导出镜像,备份，若只有一个可以不加标签
+ docker load < xx.tar   //导入镜像，恢复
+ 
+ docker run -i -t 镜像名:标签 /bin/bash(此为上帝进程,运行的是容器中的bash)  //启动镜像生成一个容器
+ -t:在新容器内指定一个伪终端或终端。
+ -i:允许你对容器内的标准输入 (STDIN) 进行交互。
+ -d:将进程放入后台运行
+ docker run -it 镜像名:标签 ls /bin/   //查看镜像下的命令
+ docker run -it 镜像名:标签    //不指定命令，容器默认使用/bin/sh
+ docker ps  //查看容器信息，需重新开启一个终端
+ 
+  		    两大linux系统区别
+ 	 	  redhat	    debian
+包名 	  	  xxx.rpm	   xxx.deb
+包管理方式   	   rpm	   	    deb
+命令   	   rpm	    	    dpkg
+		  yum		   apt-get
 
+rpm与dpkg的区别
+rpm -i xxx.rpm ==> dpkg -i xxx.deb	//安装
+rpm -e xxx ==> dpkg -r/-P xxx	//卸载，-P完全移除，-r有所残留
+rpm -qa xxx ==> dpkg -l xxx 	//显示已安装的所有软件
+rpm -ql xxx ==> dpkg -L xxx   	//显示此软件包安装的所有文件
+rpm -qf 文件路径 ==> dpkg -S 文件路径   	//查看文件产生的包
 
+yum与apt的区别
+yum install xxx ==> apt-get install xxx  //安装软件
+yum remove xxx ==> apt-get [--purge完全移除] remove xxx    //卸载软件
+yum search xxx ==> apt-cache search xxx  //搜索产生命令的包
+yum provides xxx ==> apt-file search xxx //搜索产生命令的包
+yum info xxx ==> apt-cache show 软件包名  //查看软件包详细信息
+yum update xxx ==> apt-get update xxx  //更新软件包源
+yum clean ==> apt-get clean
 
+alien 可处理.deb、.rpm、.slp、.tgz 等档案格式, 进行转档或安装. 
+于Debian安装非Debian套件时,可使用alien进行安装. 
+安装alien套件: apt-get install alien
+在Debian安装RPM套件: alien -i xxx.rpm
+制作成deb的套件格式: alien -d xxx.rpm
+制作成rpm的套件格式: alien -r xxx.deb
+		  
+四、Docker基本命令
+镜像常用命令
+ docker images   //查看镜像列表
+ docker history 镜像名:标签  //查看镜像制作历史
+ docker inpect xxx  //查看xxx的详细信息(Env：定义环境变量，Cmd：默认启动命令等信息)
+ docker pull	//下载镜像
+ docker push	//上传镜像
+ docker rmi	    //删除本地镜像
+ docker save    //镜像另存为tar包
+ docker load    //使用tar包导入镜像
+ docker search  //搜索镜像
+ docker tag     //创建相同ID的镜像名称和标签，类似ln硬连接
+容器常用命令
+ docker run	//运行容器
+ docker ps 	//查看容器列表，加-a显示所有容器，-q屏蔽ID以外的信息
+ docker start 容器ID	//启动容器
+ docker stop 容器ID	//关闭容器
+ docker restart 容器ID	//重起容器
+ docker rm 容器ID 	//删除容器，容器需是关闭状态,加-f强制删除
+ docker inspect	//查看容器相信信息
+ docker top ID	//查看容器里进程列表
+
+ docker attach|exec	//进入容器
+ docker exec -it 镜像:标签 /bin/bash  //进入容器，退出后不会自动停止容器(此种方式进入容器后，所有的进程都在bash的子进程中运行，退出只是关闭子进程)
+ docker attach ID  //进入容器直接连接上帝进程，退出后自动关闭容器，ctrl+p+q退出不关闭容器
+ 
+ docker rm $(docker stop $(docker ps -qa))  //删除所有容器
+
+作业：
+1.使用centos镜像启动容器，安装一个apache，修改默认首页hello nsd1809
+2.启动一个容器，nginx容器(默认debian系统)，修改默认首页hello tedu
 
 
 
