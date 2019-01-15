@@ -763,7 +763,7 @@ Docter缺点：
  -i:允许你对容器内的标准输入 (STDIN) 进行交互。
  -d:将进程放入后台运行
  docker run -it 镜像名:标签 ls /bin/   //查看镜像下的命令
- docker run -it 镜像名:标签    //不指定命令，容器默认使用/bin/sh
+ docker run -it 镜像名:标签    //不指定命令，容器默认使用自己的解释器
  docker ps  //查看容器信息，需重新开启一个终端
  
   		    两大linux系统区别
@@ -776,7 +776,7 @@ Docter缺点：
 rpm与dpkg的区别
 rpm -i xxx.rpm ==> dpkg -i xxx.deb	//安装
 rpm -e xxx ==> dpkg -r/-P xxx	//卸载，-P完全移除，-r有所残留
-rpm -qa xxx ==> dpkg -l xxx 	//显示已安装的所有软件
+rpm -qa  ==> dpkg -l  	//显示已安装的所有软件
 rpm -ql xxx ==> dpkg -L xxx   	//显示此软件包安装的所有文件
 rpm -qf 文件路径 ==> dpkg -S 文件路径   	//查看文件产生的包
 
@@ -826,7 +826,113 @@ alien 可处理.deb、.rpm、.slp、.tgz 等档案格式, 进行转档或安装.
 
 作业：
 1.使用centos镜像启动容器，安装一个apache，修改默认首页hello nsd1809
+  容器中启动服务:找对应的服务文件,用服务文件中的命令进行启动
 2.启动一个容器，nginx容器(默认debian系统)，修改默认首页hello tedu
+ /usr/lib/systemd/system/xxx.service
+  查看nginx安装位置,寻找配置文件,首页目录,修改首页文件
+
+###########################################################################
+Day06
+
+一、自定义镜像与仓库
+1.制作模版机
+ 配置yum源、安装常用命令ifconfig、vim、pstree
+2.退出容器，创建模版镜像
+ docker commit 模版机ID 自定义镜像名:标签
+3.基于此镜像创建新的容器
+ docker run -it 自定义镜像:标签
+
+Dockerfile制作镜像脚本
+Dockerfile语法格式：
+– FROM:基础镜像
+– MAINTAINER:镜像创建者信息(说明)
+– EXPOSE:开放的端口(多个端口重新再写一个EXPOSE)
+– ENV:设置环境变量
+– ADD:复制文件到镜像(第一个参数是当前文件夹(只支持此方式，不支持绝对路径)，第二个参数容器内路径)
+– RUN:制作镜像时执行的命令,可以有多个
+– WORKDIR:定义容器默认工作目录
+– CMD:容器启动时执行的命令,仅可以有一条CMD,可以修改默认启动解释器(格式：["ls","-a","-l"...])
+
+使用Dockerfile制作模版机示例：
+mkdir /oo && cd /oo
+cp /etc/yum.repos.d/local.repo .
+cat << eof > Dockerfile
+FROM centos:latest
+RUN rm -rf /etc/yum.repos.d/*
+ADD local.repo /etc/yum.repos.d/
+RUN yum -y install net-tools vim psmisc
+eof
+docker build -t test(自定义名字):latest .(Dockerfile文件路径)
+
+sshd-keygen  //服务端生成自己的公私钥
+ssh-keygen   //为客户端生成公私钥
+父进程挂掉的子进程会被上帝进程收留
+
+自定义镜像仓库
+server端：
+cat << eof > /etc/docker/daemon.json
+{
+  "insecure-registries" : ["192.168.1.11:5000"]
+}
+eof
+systemctl restart docker
+docker run -itd -p 5000:5000 registry  //启动私有仓库
+curl 192.168.1.11:5000/v2/	//v2版本，查看共享镜像
+docker tag 镜像:label IP:5000/镜像:label  //为镜像打标签
+docker push IP:5000/镜像:label	//上传镜像
+curl 192.168.1.11:5000/v2/_catalog  //查看仓库的镜像
+curl 192.168.1.11：5000/v2/镜像名称/tags/list  //查看仓库镜像的标签
+client端：
+cat << eof > /etc/docker/daemon.json
+{
+  "insecure-registries" : ["192.168.1.11:5000"]
+}
+eof
+systemctl restart docker
+docker run -it 192.168.1.11:5000/镜像:label
+
+二、持久化存储
+docker默认不保存任何数据
+重要数据需使用外部卷存储(数据持久化)
+容器可以挂载真实机目录或共享存储为卷
+
+docker run -v /data:/data -it myos:latest bash  
+-v 物理机路径:容器里的路径   //将物理机的目录映射到容器中
+watch -n 1 'ls'  //在终端每1秒执行一次ls
+
+共享存储
+实验：使用NFS让docker01和docker02内部的容器实现数据共享
+     docker01启动nginx
+     docker02启动apache 
+      使apache和nginx首页相同
+
+三、Docker网络架构
+docker network list  //查看docker默认网络
+三种模式：bridge(类似交换机，桥接模式)、host(主机模式)、null(无网络)
+
+docker network create -d bridge 网桥名字  //创建网桥，-d指定模式
+docker network create --subnet=网段/子网 网桥名字  //定义网桥网段
+docker run --network=网桥名 -itd 镜像  //启动容器，使用自定义网桥
+docker run -p 物理机端口:容器端口 -itd 镜像 //-p将容器端口映射到真机
+
+实验：创建docker1交换机，子网10.10.10.0/24
+
+
+K8S软件，自行扩展
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
