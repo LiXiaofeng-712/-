@@ -1,0 +1,207 @@
+Day01
+
+分布式ELK平台
+
+ELK简介
+ 是一整套解决方案,是三个软件产品的首字母缩写
+ ELK分别代表
+   Elasticsearch:负责日志检索和存储(nosql数据库角色)
+   Logstash:负责日志的收集和分析处理(类似php的功能)
+   Kibana:负责日志的可视化(web服务器角色)
+ 这三款软件都是开源的,通常配合使用
+
+ELK能做什么
+ 分布式日志数据集中式查询和管理
+ 系统监控,包含系统硬件和应用各个组件的监控(不同于zabbix,单个用户大访问也可以监控到)
+ 故障排查
+ 安全信息和事件管理
+ 报表功能
+ 
+Elasticsearch
+ 特点
+  -实时分析
+  -分布式实时文件存储，将每一个字段编入索引
+  -文档导向，所有的对象全部是文档
+  -高可用性，易扩展，支持集群、分片和复制
+  -接口友好，支持JSON
+ 缺点
+  -没有典型意义的事务
+  -是一种面向文档的数据库
+  -没有提供授权和认证特性
+ 相关概念
+  -Node:装有一个ES服务器的节点
+  -Cluster:有多个Node组成的集群
+  -Document:一个可被搜索的基础信息单元
+  -Index：拥有相似特征的文档的集合
+  -Type：一个索引中可以定义一种或多种类型
+  -Filed：是ES的最小单位，相当于数据的某一列
+  -Shards：索引的分片，每一个分片就是一个Shard
+  -Replicas：索引的拷贝
+ SQL与NoSQL
+ -DB -> Databases -> Tables -> Rows -> Columns
+  -关系型    数据库          表          行          列
+ -ES -> Indices -> Types -> Documents -> Fields
+ -ES      索引         类型         文档         域(字段)
+
+组件elasticsearch集群
+1.配置虚拟机(ip:192.168.1.11-15,name:es1-5,/etc/hosts配置五台主机)
+2.安装软件包java-1.8.0-openjdk elasticsearch
+3.修改配置文件/etc/elasticsearch/elasticsearch.yml
+ 17：cluster.name: 集群名字
+ 23：node.name: 本机主机名
+ 54：network.host: 0.0.0.0(允许访问的网段)
+ 68：discovery.zen.ping.unicast.hosts: ["各主机名","","",...](可以只写2，3个，但启动服务时，必须先启动此处声明的主机，否则其他节点会找不到集群)
+4.启动验证 systemctl start elasticsearch
+  http://IP:9200   //验证单台elasticsearch是否正常
+  http://IP/_cluster/health?pretty  //验证集群是否正常
+ 
+HTTP协议
+http请求由三部分组成：请求行、消息报头、请求正文
+http请求方法
+ 常用方法：GET，POST，HEAD
+ 其他方法：OPTIONS，PUT，DELETE，TRACE，CONNECT
+ES常用
+ PUT：增
+ DELETE：删
+ POST：改
+ GET：查
+系统命令curl常用参数
+ -A  修改请求agent
+ -X  设置请求方法
+ -i  显示返回头信息
+ curl -XPUT 118.144.89.24/info.php
+ 
+ES插件使用
+常用插件
+ head插件
+   -它展现ES集群的拓扑结构，并且可以通过它来进行索引(index)和节点(node)级别的操作
+   -它提供一组针对集群的查询API，并将结果以json和表格式形式返回
+   -它提供一些快捷菜单，用以展现集群的各种状态
+ kopf插件
+   -是一个ElasticSearch的管理工具
+   -它提供了对ES集群操作的API
+ bigdesk插件
+   -是elasticsearch的一个集群监控工具
+   -可以通过它来查看es集群的各种状态，如：cup、内存使用情况，索引数据、搜索情况，http连接数等
+ES插件的安装、查看
+ /usr/share/elasticsearch/bin/plugin list   //查看安装的插件
+ /usr/share/elasticsearch/bin/plugin install file:///文件目录  //安装插件
+ /usr/share/elasticsearch/bin/plugin remove  //删除插件
+ http://IP:9200/_plugin/插件名    //打开插件
+ 
+RESTful API调用
+ -检查集群、节点、索引的健康度、状态和统计
+ -管理集群、节点、索引的数据及元数据
+ -对索引进行CRUD操作及查询操作
+ -执行其他高级操作如分页、排序、过滤等
+POST或PUT数据使用json格式
+
+JSON简介
+ JSON是什么
+   JSON是JavaScript对象表示法,它是一种基于文本独立于语言的轻量级数据交换格式
+   JSON中的分隔符限于单引号、小括号、中括号、大括号、冒号、逗号
+ JSON特性
+   JSON是纯文本
+   JSON具有自我描述性(人类可以读懂)
+   JSON具有层及结构(值中存在值,嵌套)
+   JSON可通过JavaScript进行解析
+ JSON语法规则
+   数据在名称/值对中
+   数据由逗号分隔
+   大括号保存对象
+   中括号保存数组
+   小括号表示分组
+ JSON数据的书写格式："key":"values"
+ JSON复合复杂类型：
+   { "诗人":
+     [ {"李白":"诗仙","年代":"唐"},
+      {"李白":"诗仙","年代":"唐"},
+      {"李白":"诗仙","年代":"唐"},
+      {"李白":"诗仙","年代":"唐"}
+     ]
+   }
+
+RESTful API简单使用
+ _cat API查询集群状态，节点信息
+ curl http://IP:9200/_cat/?h  //帮助信息，查看详细参数
+ curl http://IP:9200/_cat/xxx?v  //显示详细信息
+ 常用的xxx参数：health(集群健康状态)、master(主库信息)、nodes(集群主机信息)、shards(索引和数据保存信息)、indices(索引信息)
+ 
+命令创建一个索引，json格式
+curl -XPUT http://IP:9200/索引名称  -d '     //-d表示向服务器发送数据
+{
+  "settings":{
+    "index":{
+      "number_of_shards":5,
+      "number_of_replicas":1
+    }
+  }
+}'
+ 
+增加
+curl -XPUT http://192.168.1.11:9200/索引名/类型名/id -d '{
+"姓名": "何南海",
+"年龄": "不详",
+"性别": "不详"
+}'
+修改
+curl -XPOST http://192.168.1.11：9200/索引名/类型名/id/_update -d '{
+"doc":{
+ "性别": "男"
+}
+}'
+删除
+curl -XDELETE http://192.168.1.11：9200/索引名/类型名/id
+curl -XDELETE http://192.168.1.11：9200/*   //删除数据库所有信息
+查询
+curl -XGET http://192.168.1.11：9200/索引名/类型名/id   //加?pretty竖排显示
+ 
+kibana
+ 数据可视化平台工具
+特点：
+ -灵活的分析和可视化平台
+ -实时总结流量和数据的图表
+ -为不同的用户显示直观的界面
+ -即使分享和嵌入的仪表板
+ 
+YAML简介
+ YAML是什么
+    是一个可读性高，用来表达数据序列的格式
+   YAML(YAML Ain't Markup Language)
+   YAML参考了多种语言
+ YAML基础语法
+  YAML结构通过空格来展示
+   数组使用"- "来表示
+   键值对使用": "来表示
+  YAML使用一个固定的缩进风格表示数据层及结构关系
+   一般每个缩进级别由两个以上空格组成
+   #表示注释
+ 注意：
+   不要使用tab，缩进是初学者容易出错的地方之一
+   同一层级缩进必须对齐
+ YAML的键值表示方法
+   采用冒号分隔
+   ：后面必须有一个空格
+   YAML键值对：
+    "key":"values"
+    "key":
+      - "values"
+      - "values"
+     key:
+          - 
+          key:values
+          key:values
+          - 
+          key:values
+          key:values   
+          - 
+          key:values
+          key:values   
+   
+   
+   
+   
+   
+   
+   
+ 
