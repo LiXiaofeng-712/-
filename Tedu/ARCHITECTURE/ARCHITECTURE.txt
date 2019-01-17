@@ -163,7 +163,139 @@ kibana
  -实时总结流量和数据的图表
  -为不同的用户显示直观的界面
  -即使分享和嵌入的仪表板
+安装kibanna
+ 装包kibana
+ 修改配置文件/opt/kibana/config/kibana.yml
+  2 server.port: 5601    //若把端口改为80，可以成功启动kibana，但ss时没有端口，没有监听80端口，服务里面写死了，不能用80端口，只能是5601这个端口
+  5 server.host: "0.0.0.0"        //服务器监听地址
+  15 elasticsearch.url: http://192.168.1.61:9200   //声明地址，从哪里查，集群里面随便选一个
+  23 kibana.index: ".kibana"    //kibana自己创建的索引
+  26 kibana.defaultAppId: "discover"    //打开kibana页面时，默认打开的页面 discover
+  53 elasticsearch.pingTimeout: 1500    //ping检测超时时间
+  57 elasticsearch.requestTimeout: 30000    //请求超时
+  64 elasticsearch.startupTimeout: 5000    //启动超时
+  
+导入数据使用_bulk,POST
+ -批量导入数据使用POST方式,数据格式为json,url编码使用data-binary
+ -文件中没有index配置的,需要在ur里面定制index和type
+ curl -XPOST http://192.168.1.11:9200/_bulk --data-binary @json文件
  
+查询导入的数据使用_mget,GET
+ curl -XGET http://192.168.1.15:9200/_mget?pretty -d '{
+ "docs":[
+   {"_index": "索引名",
+    "_type" : "类型名",
+     "_id" : "id值"
+    },
+    ...
+ ]
+ }'
+
+
+curl -XGET http://192.168.1.15:9200/_mget?pretty -d '{
+ "docs":[
+   {"_index" : "shakespeare",
+     "_type" : "line",
+       "_id" : "1"
+    },
+   {"_index" : "accounts",
+     "_type" : "type",
+       "_id" : "1"
+    },
+   {"_index": "logstash-2015.05.20",
+    "_type" : "log",
+     "_id" : "AWhZfKgVi0F9tdPUkl51"
+    }
+    ]}'
+在图形界面http://192.168.1.20:5601/制作图表
+
+Logstash
+是什么:一个数据采集、加工处理以及传输的工具
+特点：
+  -所有类型的数据集中处理
+  -不同模式和格式数据的正常化
+  -自定义日志格式的迅速扩展
+  -为自定义数据源轻松添加插件
+Logstash安装
+  -依赖Java环境，需要安装java-1.8.0-openjdk
+  -没有默认的配置文件，需要手动设置
+  -安装在/opt/logstash
+  
+百度搜索金步国作品集(此人爱好翻译官方手册)
+httpd.apache.org  //官方寻找手册
+日志格式logformat  
+Http默认日志文件		/var/log/httpd/access_log
+访问用户IP - 访问用户名 访问具体时间 访问协议 访问结果返回值 发送文件大小 客户使用系统 使用浏览器 
+ 
+logstash工作结构
+ input   负责收集日志，读
+ filter  负责处理日志，加工
+ output  负责输出日志，写
+
+书写logstash配置文件
+vim /etc/logstash/logstash.conf
+input{
+  file {
+    path => [ "/tmp/a.log","...",... ]    //定义读取文件位置
+    sincedb_path => "/var/lib/logstash/since.db"  //指定文件记录上次读取位置
+    start_position => "beginning"    //定义第一次读取从文件头开始读取
+    type => "apache.log"    //自定义类型，方便区分
+  }
+  tcp {
+    mode => "server"     //默认为服务端,若为客户端以下为去寻找的主机和端口
+    host => "0.0.0.0"    //监听的主机地址
+    port => 8888  	//监听的端口
+    type => "tcp.log"    //类型，自定义
+  }
+  udp {
+    port => 8888
+    type => "udp.log"
+  }
+  syslog {
+    type => "sys.log"
+  }
+
+}
+filter{
+  
+}
+output{
+  stdout { codec => "rubydebug" }    //定义输出格式
+  flush_size => 2000	//超过2000字节写一次，性能优化
+  idle_flush_time => 10  //10分钟写入一次
+} 
+web客户端配置
+vim /etc/rsyslog.conf
+增加:local0.info  @@目标主机IP:514    //发送local0.info的日志到哪里
+systemctl restart rsyslog
+
+模拟产生日志
+logger -p local0.info(日志文件) -t weblog(主题) "内容"
+
+/opt/logstash/bin/logstash -f 配置文件路径  //开启logstash
+输出格式：事件戳  主机名  数据
+
+插件
+备注：若不会写配置文件可以找帮助，插件文档的位置：
+https://www.elastic.co/guide/en/logstash/current/index.html
+https://github.com/logstash-plugins
+/opt/logstash/bin/logstash-plugin list   //查看已有插件列表
+logstash-插件使用的区域()-具体使用方式  //插件命名格式
+codec：用于所有区域，编码格式
+input：只能用于本区域，读取数据
+filter：只能用于本区域，处理数据
+output：只能用于本区域，输出数据
+
+shell的网络重定向，man bash
+发送tcp数据：echo xxx > /dev/tcp/目标IP/端口
+发送udp数据：echo xxx > /dev/tcp/目标IP/端口
+调试shell脚本时在#!/bin/bash -x可以显示运行过程
+-S  //匹配空格
+-d  //匹配数字
+
+
+
+
 YAML简介
  YAML是什么
     是一个可读性高，用来表达数据序列的格式
