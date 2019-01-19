@@ -168,7 +168,7 @@ kibana
  修改配置文件/opt/kibana/config/kibana.yml
   2 server.port: 5601    //若把端口改为80，可以成功启动kibana，但ss时没有端口，没有监听80端口，服务里面写死了，不能用80端口，只能是5601这个端口
   5 server.host: "0.0.0.0"        //服务器监听地址
-  15 elasticsearch.url: http://192.168.1.61:9200   //声明地址，从哪里查，集群里面随便选一个
+  15 elasticsearch.url: http://192.168.1.11:9200   //声明地址，从哪里查，集群里面随便选一个
   23 kibana.index: ".kibana"    //kibana自己创建的索引
   26 kibana.defaultAppId: "discover"    //打开kibana页面时，默认打开的页面 discover
   53 elasticsearch.pingTimeout: 1500    //ping检测超时时间
@@ -208,6 +208,9 @@ curl -XGET http://192.168.1.15:9200/_mget?pretty -d '{
     }
     ]}'
 在图形界面http://192.168.1.20:5601/制作图表
+###########################################################################
+
+Day02
 
 Logstash
 是什么:一个数据采集、加工处理以及传输的工具
@@ -235,6 +238,9 @@ logstash工作结构
 书写logstash配置文件
 vim /etc/logstash/logstash.conf
 input{
+  beats {
+    port => 5044
+  }
   file {
     path => [ "/tmp/a.log","...",... ]    //定义读取文件位置
     sincedb_path => "/var/lib/logstash/since.db"  //指定文件记录上次读取位置
@@ -254,26 +260,44 @@ input{
   syslog {
     type => "sys.log"
   }
-
 }
 filter{
-  
+  if [type] == "weblog" {  //匹配filebeat配置文件中的document_type
+  grok {
+    match  => { "message" => "(?<ip>[0-9.]+) (?<>) \[(?<time>.+)\] \"(?<method>[A-Z]+) (?<ur>.+) (?<ver>[^\"]+)\" (?<req>[0-9]+) (?<size>[0-9]+) \"(?<url>.*)\" \"(?<web>.*)\""}
+  }
+  }
 }
 output{
   stdout { codec => "rubydebug" }    //定义输出格式
-  flush_size => 2000	//超过2000字节写一次，性能优化
-  idle_flush_time => 10  //10分钟写入一次
+  if [type] == "weblog" {  //匹配到类型后再执行下列命令
+  elasticsearch {
+    hosts => ["IP","IP",...]   //数据库地址
+    index => "索引名"      //要存到哪个索引中
+    flush_size => 2000	//超过2000字节写一次，性能优化
+    idle_flush_time => 10  //10分钟写入一次
+  }
+  }
 } 
+/opt/logstash/bin/logstash -f 配置文件路径  //开启logstash
+输出格式：事件戳  主机名  数据
+
 web客户端配置
 vim /etc/rsyslog.conf
 增加:local0.info  @@目标主机IP:514    //发送local0.info的日志到哪里
 systemctl restart rsyslog
-
 模拟产生日志
 logger -p local0.info(日志文件) -t weblog(主题) "内容"
+安装filebeat
+修改配置文件/etc/filebeat/filebeat.yml
+- /var/log/日志路径
+document_type: 自定义类型
+logstash:	//打开注释
+hosts: ["logstash主机IP:5044"]
+systemctl start filebeat
 
-/opt/logstash/bin/logstash -f 配置文件路径  //开启logstash
-输出格式：事件戳  主机名  数据
+
+
 
 插件
 备注：若不会写配置文件可以找帮助，插件文档的位置：
@@ -290,8 +314,9 @@ shell的网络重定向，man bash
 发送tcp数据：echo xxx > /dev/tcp/目标IP/端口
 发送udp数据：echo xxx > /dev/tcp/目标IP/端口
 调试shell脚本时在#!/bin/bash -x可以显示运行过程
--S  //匹配空格
--d  //匹配数字
+-\S  //匹配非空白
+-\s  //匹配空白
+-\d  //匹配数字
 
 
 
@@ -329,11 +354,201 @@ YAML简介
           - 
           key:values
           key:values   
+
+#########################################################################
+
+Day03
+
+ansible简介
+ ansible可以实现
+   -自动化部署APP
+   -自动化管理配置项
+   -自动化持续交付
+   -自动化(AWS)云服务管理
+ ansible优点
+   -只需要SSH和Python即可使用
+   -无客户端
+  -ansible功能强大，模块丰富
+   -上手容易，门槛低
+   -基于Python开发，做二次开发更容易
+   -使用公司比较多，社区活跃
+ ansible特性
+   -模块化设计，调用特定的模块完成特定任务
+   -基于Python语言实现
+   -其模块支持JSON等标准输出格式，可以采用任何编程语言重写
    
-   
-   
-   
-   
-   
-   
+安装ansible
+源码安装：
+  下载源码
+  安装依赖包python-setuptools，python-devel
+  编译python setup.py build
+  安装python setup.py install
+pip方式安装：pip install ansible
+Yum安装：
+ yum install ansible
+ ansible --version   //查看安装信息
  
+ad-hoc
+主机管理
+ ansible配置文件查找顺序(可以创建多个cfg文件)
+   -首先检测ANSIBLE_CONFIG变量定义的配置文件,环境变量
+   -其次检查当前目录下的./ansible.cfg文件
+   -再次检查当前用户家目录下~/ansible.cfg文件
+   -最后检查/etc/ansible/ansible.cfg文件
+ /etc/ansible/ansible.cfg是ansible的默认配置文件路径
+修改/etc/ansible/ansible.cfg配置文件
+ 14:inventory   = /etc/ansible/hosts    //指定ansible分组文件目录
+ 61:host_key_checking = False	//关闭主机key检测，连接时不用输入yes
+/etc/ansible/hosts格式
+ [web]     //[组名称]
+ web[1:10] ansible_ssh_user=root ansible_ssh_pass="密码" ansible_ssh_port=端口 等信息   //不连续的分行写，组成员(主机名或IP地址等)
+ ...
+ [app:children]	//添加关键字children，表示下方为组的名称
+ 组名		
+ ...
+ [app:vars]		//关键字vars，表示为app组所有主机定义用户，密码，端口等信息
+ ansible_ssh_pass=123456
+ ...
+ 
+ 查看hosts主机
+ ansible [组名,...] --list-hosts   //显示组中所有主机，用all表示所有组
+配置后端托管主机后测试
+ ansible 组名或主机名 -m ping [-k表示手工输入密码] //ansible会使用ssh尝试去连接托管主机
+
+/etc/ansible/ansible.cfg配置文件inventory参数说明
+ -ansible_ssh_host   //将要连接的远程主机名与你想要设定的主机别名不同，可以通过此变量设置
+ -ansible_ssh_port  //指定ssh端口号
+ -ansible_ssh_user  //默认ssh用户名
+ -ansible_ssh_pass  //ssh密码(这种凡是不安全，建议使用--ask-pass或ssh密钥)
+ -ansible_sudo_pass  //sudo密码(建议使用--ask-sudo-pass)
+ -ansible_sudo_exe  //sudo命令路径(适用1.8及以上版本)
+ -ansible_connection  //与主机的连接类型，如：local，ssh或paramiko
+ -ansible_ssh_private_key_file  //ssh使用的私钥文件，适用于有多个密钥，而不项适用SSH代理的情况
+ -ansible_shell_type  //目标系统的shell类型，默认情况下，命令的执行使用sh语法
+ -ansible_python_interpreter  //目标主机的python路径，适用系统中有多个python或路径不时/usr/bin/python
+
+ansible多人使用时自定义配置文件(静态主机)
+1.创建ansible.cfg文件
+2.在配置文件中添加
+ [defaults]
+ inventory = 分组文件路径
+ host_key_checking = False
+3.在分组文件中添加分组信息
+4.在当前文件路径下执行anzible(执行顺序要牢记)
+
+动态主机
+指将inventory指定的文件/etc/ansible/hosts改为python等各种脚本，按Json格式返回给ansible
+注意主机部分必须时列表格式，Hostdata行中的hosts部分可以省略，但使用时必是hosts
+
+批量执行
+ansible命令基础
+ 格式：ansible <host-pattern> [options]
+ ansible hosts -m modules -a mod args   //ansible通用格式
+ host-pattern  主机或定义的分组
+ 选项：
+  -M  指定模块路径
+  -m  使用模块，默认command模块(远程命令执行命令模块)，常用
+  -a  or --args模块参数，必带
+  -i  imventory文件路径，或可执行脚本
+  -k  使用交互式登陆密码
+  -e  定义变量
+  -v  详细信息，-vvvv开启debug模式
+
+批量部署公钥私钥
+1.ansible主机生成公钥私钥
+ ssh-keygen -N '' -f /root/.ssh/id_rsa -t rsa -b 1024
+2.给所有主机部署公钥
+ ansible all -m authorized_key -a "
+user=root   //给root用户部署密钥
+exclusive=true  //当用户有密钥时，追加进去
+manage_dir=true  //当.ssh目录不存在时，自动授权创建
+key='$(< /root/.ssh/id_rsa.pub)'  //将公钥导入变量key中
+" -k
+3.验证
+ ansible all -m ping 
+
+批量配置管理---模块
+ansible-doc模块
+  -模块的手册相当于shell的man，非常重要
+ -ansible-doc -l    列出所有模块
+ -ansible-doc modulename  查看帮助
+ping模块
+  -测试网络连通性，ping模块没有参数
+  -注：测试ssh的连通性，与命令ping不一样，小心区分
+  
+command模块
+  -默认模块，远程执行命令
+  -用法：ansible host-pattern -m command -a '[args]'
+  注意事项：
+    -该模块通过-a跟上要执行的命令可以直接执行，若命令里有如下字符则执行不成功
+    -'<','>','|','&'等
+    -该模块不启动shell(bash)直接在ssh进程中执行，所有使用到shell(bash)的命令执行都会失败
+shell|raw模块
+ -shell模块用法基本和command一样，区别是shell模块是通过/bin/sh进行执行命令，可以执行任意命令
+ -raw模块，用法和shell模块一样，可以执行任意命令，使用很多系统
+  -区别是raw没有chdir(锁定当前目录)、creates、removes参数
+  -执行以下命令查看结果
+   ansible all -m command -a 'chdir=/tmp touch f1'  //在/tmp下创建f1
+   ansible all -m shell -a 'chdir=/tmp touch f1'  //在/tmp下创建f1
+   ansible all -m raw -a 'chdir=/tmp touch f1'  //指定目录无效
+script模块
+  -在本地写脚本，然后使用script模块批量执行
+  -注意：该脚本包含但不限于shell脚本，只要指定Sha-bang解释器的脚本可运行
+  ansible hosts -m script -a "脚本"
+  
+copy模块
+  -复制文件到远程主机，文件名一模一样
+ -src：本地文件路径，复制远程主机的文件到本地，绝对路径和相对路径都可，路径为目录时会递归复制。若路径以"/"结尾，值复制目录里的内容，负责复制包含目录在内的内容，类似rsync
+ -dest：远程主机路径，必选项。远程主机的绝对路径，如果源文件是一个目录，那该路径必须是目录
+ -backup：覆盖前先备份原文件，备份文件包含时间信息。有两个选项：yes|no
+ -force：若目标主机包含该文件，但内容不同，如果设置为yes，则强制覆盖，设为no，则值有当目标主机的目标位置不存在该文件是才复制。默认为yes
+  -复制文件
+   ansible all -m copy -a "src=/etc/resolv.conf dest=/etc/resolv.conf"
+  -复制目录
+   ansible all -m copy -a "src=/etc/ dest=/etc/"
+   
+lineinfile|replace模块
+  -类似sed的一种行编辑替换模块
+ -path目标文件
+ -regexp正则表达式，匹配要修改的地方
+ -line替换后的结果,匹配到替换一整行
+  ansible all -m lineinfile -a 'path="/etc/selinux/config" regexp="^SELINUX=" line="SELINUX=disabled"'
+ -replace替换指定字符，只修改匹配到的关键词
+   ansible all -m lineinfile -a 'path="/etc/selinux/config" regexp="^(SELINUX=).*" replace="\1disabled"'  //\1复制前面()内的所有内容
+   
+yum模块(大批量安装使用，有报错信息)
+  -使用yum包管理器来管理软件包
+ -config_file：yum的配置文件
+ -disable_gpg_check:关闭gpg_check
+ -disablerepo:不启用某个源
+ -enablerepo:启用某个源
+ -name：要进行操作的软件包名称，多个用逗号分隔，也可以传递一个url或一个本地的rpm包的路径
+ -state：状态(installed,removed,latest)
+  ansible db -m yum -a 'name="mariadb-server" state="installed"'
+service模块
+ -name：服务名
+ -enabled：是否开机启动 yes|no
+ -state：动作(started,stopped,restarted)
+ -sleep:执行restarted，会在stop和start之间沉睡几秒
+  ansible web -m service -a 'name="httpd" state="started"'
+setup模块
+  -主要用户获取客户端主机的各种信息，常用参数filter
+ -filter过滤所需信息
+  ansible other -m setup -a "filter=条件"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
