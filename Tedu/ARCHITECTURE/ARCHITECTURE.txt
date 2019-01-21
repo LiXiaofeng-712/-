@@ -531,10 +531,317 @@ service模块
  -state：动作(started,stopped,restarted)
  -sleep:执行restarted，会在stop和start之间沉睡几秒
   ansible web -m service -a 'name="httpd" state="started"'
+
 setup模块
   -主要用户获取客户端主机的各种信息，常用参数filter
  -filter过滤所需信息
   ansible other -m setup -a "filter=条件"
+##########################################################################
+
+Day04
+一、playbook基础
+ansible七种武器
+1.ansible命令，用于执行临时性的工作，必须掌握
+2.ansible-doc是ansible模块的文档说明，针对每个模块都有详细的说明及应用案例介绍，类似man命令，必须掌握
+3.ansible-console是ansible为用户提供的交互式工具，用户可以在ansible-console虚拟出来的终端上像Shell一样使用ansible内置的各种命令，这为习惯使用Shell交互方式的用户提供良好的使用体验
+4.ansible-galaxy从github上下载管理Roles的一款工具，与python的pip类似
+5.ansible-playbook是日常应用中使用频率最高的命令，工作机制：通过读取先编写号的playbook文件实现批量管理，可以理解为按一定条件组成的ansible任务集，必须掌握
+6.ansible-vault主要用于配置文件加密，如编写的playbook文件中包含敏感信息，不想让他人查看，可用它加密/解密这个文件(任何人都可用此命令加密解密)
+7. -ansible-pull
+   -ansible有两种工作模式pull/push，默认使用push模式工作，pull和push工作模式机制相反
+    -适用场景：有大批量机器需要配置，即使高并发线程依旧要花费很多时间
+    -通常在配置大批量机器的场景下使用，灵活性稍有欠缺，但效率几乎可以无限提升，对运维人员的技术水平和前瞻性规划有较高要求
+   -push被动模式，pull主动模式
+   
+ansible脚本需要YAML格式,输出JSON格式，参数也使用JSON格式
+YAML格式，JSON格式，语法参考第一天
+
+Jinja2模版简介
+playbook的模版引擎，使用python的Jinja2模块处理
+Jinja2模版基本语法
+ -模版的表达式都是包含在分隔符"{{  }}"内的  {{变量/计算/判断}}
+ -控制语句都是包含在分隔符"{%  %}"内的   {%if/for循环%}
+ -模版支持注释，包含在分隔符"{#  #}"内
+Jinja2过滤器
+ -变量可以通过过滤器修改，类似管道(|)作用差不多，也可以用圆括号传递可选参数，多个过滤器可以链式调用
+ -查看文档http://docs.jinkan.org/docs/jinja2/templates.html#builtin-filters
+ 
+playbook
+是什么
+ -用于配置，部署和管理托管主机剧本，通过playbook的详细描述，执行其中一系列任务，使远端素质达到预期状态
+ -其实就是一个脚本，执行一系列命令
+为什么使用
+ -可以反复使用编写的代码，放到不同机器上
+ -执行一些过于复杂的命令时
+语法格式
+ -playbook有YAML语言编写
+ -在同一行中，#之后内容表示注释
+ -同一列表中的元素应该保持相同的缩进
+ -playbook由一个或多个play组成
+ -play中hosts，variables，roles，tasks等对象的表示方法都是键值中间以":"分隔表示
+ -YAML还有一个小的怪癖，他的文件开始行都应该是 --- ，这是YAML格式的一部分，表名文件的开始
+结构
+ -Target：定义将要执行playbook的远程主机组，使用的变量hosts
+ -Variable：定义playbook运行时需要使用的变量，variables
+ -Tasks：定义将要在远程主机上执行的任务列表，使用变量tasks
+ -Handler：定义task执行完成以后需要调用的任务，使用变量handlers
+执行结果
+ 使用ansible-playbook运行playbook文件，输出内容为JSON格式，由不同颜色便于识别 
+  -绿色表示执行成功
+  -黄色代表发生改变
+  -红色代表执行失败
+
+简单的playbook编写 
+cat << eof > ping.yml
+---
+- hosts: all	//指定远程主机组
+  remote_user: root   //指定远程连接主机使用的用户
+  tasks:      //指定执行的任务列表，顺序执行，每台主机都会执行所有任务
+    - ping: 
+eof
+ansible-playbook ping.yml -f 5   //-f并发进程数，默认是5，对于主机是并发，任务是顺序执行
+
+tasks下的name为注释和描述信息
+cat << eof > user1.yml
+---
+- hosts: all
+  remote_user: root
+  tasks: 
+    - name: create user plj	//注释信息
+      user: 	//user模块创建用户
+        name: plj    //参数name指定用户名称
+    - name: change password  
+      shell: echo "123456" | passwd --stdin plj  //shell模块修改密码
+    - shell: chage -d 0 plj
+eof
+
+本案例要求：
+安装Apache并修改监听端口为8080
+修改ServerName配置，执行apachectl -t命令不报错
+设置默认主页hello world
+启动服务并设开机自启
+不能使用shell，script模块
+echo "hello world" > index.html
+cat << eof > http.yml
+---
+- hosts: db
+  remote_user: root
+  tasks: 
+    - yum: 
+        name: httpd
+        state: installed
+    - lineinfile: 
+        path: "/etc/httpd/conf/httpd.conf"
+        regexp: "^Listen"
+        line: "Listen 8080"
+    - replace: 
+        path: "/etc/httpd/conf/httpd.conf"
+        regexp: "^#(ServerName +).*"
+        replace: "\\1localhost"
+    - copy: 
+        src: "index.html"
+        dest: "/var/www/html/index.html"
+        owner: apache	//文件所有者
+        group: apache	//文件所属组
+        mode: 0644	//文件权限
+    - service: 
+        name: httpd
+        state: started
+        enabled: yes
+eof
+  
+二、playbook进阶
+/etc/login.defs   //存放一些用户的各种信息
+语法进阶
+vars:
+  变量: 值
+引用使用：{{变量}}
+cat << eof > user1.yml
+---
+- hosts: all
+  remote_user: root
+  vars: 
+    username: nb
+  tasks: 
+    - user: 	
+        name: "{{username}}"
+    - name: change password
+      shell: echo "123456" | passwd --stdin "{{username}}"
+    - shell: chage -d 0 "{{username}}"
+eof
+ansible-playbook user1.yml -e '{"username": "kk"}'  //-e定义外部变量，优先级高于vars
+
+过滤器："{{'123456'|password_hash('加密方式')}}"   //对密码进行加密
+cat << eof > user1.yml
+---
+- hosts: all
+  remote_user: root
+  vars: 
+    username: dd
+  tasks: 
+    - user: 
+        name: "{{username}}"
+        password: "{{'123456'|password_hash('sha512')}}"  //user模块password默认会将123456写入shadow文件，经过过滤器后可以加密写入
+    - shell: chage -d 0 "{{username}}"
+eof
+
+error
+ansible-playbook对错误的处理
+  -默认情况判断$?,如果值不为0就停止执行
+  -但某些情况我们需要忽略错误继续执行
+1.命令：true(改变$?值为0)、false(改变$?的值为1)  //弊端，一些错误无法发现
+2.使用下列方法即可以跳过错误，继续执行命令，又可以显示报错信息
+cat << eof > user2.yml
+---
+- hosts: web
+  remote_user: root
+  tasks: 
+    - shell: useradd z3
+      ignore_errors: True
+    - shell: echo 123456 | passwd --stdin z3
+eof
+
+handlers
+当关注的资源发生变化时采取的操作
+notify这个action可用于每个play的最后被触发，这样可以避免有多次改变发生时每次都执行指定的操作，取而代之仅在所有的变化发生完成后一次性的执行指定操作
+在notify中列出的操作称为handler，即notify调用handler中定义的操作
+当满足条件时就执行触发器中的动作,修改配置文件应用较多
+cat << eof > http.yml
+---
+- hosts: db
+  remote_user: root
+  tasks: 
+    - yum: 
+        name: httpd
+        state: installed
+    - copy:
+        src: httpd.conf
+        dest: /etc/httpd/conf/httpd.conf
+        owner: root
+        group: root
+        mode: 0644
+      notify:
+        - reload httpd	//指定触发器的name
+    - copy: 
+        src: "index.html"
+        dest: "/var/www/html/index.html"
+        owner: apache	//文件所有者
+        group: apache	//文件所属组
+        mode: 0644	//文件权限
+    - service: 
+        name: httpd
+        state: started
+        enabled: yes
+  handlers: 		//定义触发器
+    - name: reload httpd	//name字段必须填写，上方寻找的依据
+      service:	//指定触发的动作
+        name: httpd
+        state: restarted
+eof
+
+注意事项：
+ -notify调用的是handler段的name定义的串，必须一致，否则达不到触发效果
+ -多个task触发同一个notify的时候，同一个服务只会触发一次
+ -notify可以触发多个条件，在生产环境中往往涉及到某一个配置文件的改变要重起若干服务的场景，handler用到这里非常合适
+ -结合vars可以写出非常通用的服务管理脚本
+ 
+when
+ 满足一定条件触发某一操作，这时候进行条件判断，使用when最佳
+ tasks: 
+   - name: xxx
+        模块: 命令
+     when: 条件      //判断满足条件执行上述命令
+register
+ 保存前一个命令的返回状态，以便在后面调用
+ - 模块: 命令
+  register: result
+ - 模块: 命令
+  when: result   //对上面的结果进行判断，满足执行命令，不满足跳过
+with_items
+ 一个标准循环，可以迭代一个列表或字典，通过{{item}}获取没此迭代的值 
+创建不同用户，设置不同密码和组
+cat << eof > user4.yml
+---
+- hosts: all
+  remote_user: root
+  tasks: 
+    - user: 
+        name: "{{item.name}}"
+        password: "{{item.pwd|password_hash('sha512')}}"
+        group: "{{item.group}}"
+      with_items:
+          - 
+         name: "nb"
+         pwd: "bn"
+         group: "noboady"
+          -
+         name: "dd"
+         pwd: "dd"
+         group: "user"
+          -
+         name: "kk"
+         pwd: "kk"
+         group: "sshd"
+          -
+         name: "jj"
+         pwd: "jj"
+         group: "root"       
+eof
+ 
+with_nested
+ 嵌套循环
+---
+- hosts: web2
+  remote_user: root
+  vars:
+    un: [a, b, c]
+    id: [1, 2, 3]
+  tasks:
+    - name: add users
+      shell: echo {{item}}
+      with_nested:
+        - "{{un}}"
+        - "{{id}}
+
+tags:给指定的任务定义一个标示，可以单独调用
+---
+- hosts: cache
+  remote_user: root
+  tasks:
+    - copy:
+        src: /root/httpd.conf
+        dest:  /etc/httpd/conf/httpd.conf
+        owner: root
+        group: root
+        mode: 0644
+      tags: config_httpd
+      notify:
+        - restart httpd
+  handlers:
+     - name: restart httpd
+       service: name=httpd state=restarted
+ansible-playbook xxx.yml --tags=config_httpd  //单独调用标示的任务
+
+include：引入一个文件
+roles：引入一个文件夹，加强版的include
+一般所需的目录层级有
+vars：变量层
+tasks：任务层
+handlers：触发条件
+files：文件
+template：模板
+default：默认，优先级最低
+
+调试
+debug
+ -检测语法
+  ansible-playbook --syntax-check playbook.yaml   //仅供参考，不准确
+ -测试运行
+  ansible-playbook -C playbook.yaml  //仅供参考，不准确
+ -显示受到影响的主机 
+  ansible-playbook playbook.yaml --list-hosts
+ -显示工作的task --list-tasks
+ -显示将要运行的tag --list-tags
 
 
 
