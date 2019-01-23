@@ -983,7 +983,7 @@ Hadoop分布式系统文件之完全分布式
      <description>描述</description>
    </property>
 1.系统规划
-      IP	  主机名        角色
+    IP	  主机名        角色
  192.168.1.10  mynn01   NameNode,SecondaryNameNode
  192.168.1.11  node1    DataNode
  192.168.1.12  node2    DataNode
@@ -1055,6 +1055,156 @@ Hadoop分布式系统文件之完全分布式
   ./bin/hdfs dfsadmin -report
 10.日志文件/usr/local/hadoop/logs/
   文件名格式：hadoop组件-启动用户-角色-主机名.out(启动程序的标准输出)/log(运行日志)
+
+##########################################################################
+
+Day05
+安装部署分布式计算框架MapReduce
+NameNode消耗中等量的磁盘和少量的cpu
+ResourceManager消耗大量内存,少量cpu,少量磁盘I/O
+DataNode消耗最大的是磁盘的I/O,其他相对少很多
+NodeManager消耗cpu和内存,磁盘I/O较大
+
+系统规划
+    IP	  主机名        角色
+ 192.168.1.10  mynn01   NameNode,SecondaryNameNode/ResourceManager
+ 192.168.1.11  node1    DataNode/NodeManager
+ 192.168.1.12  node2    DataNode/NodeManager
+ 192.168.1.13  node3    DataNode/NodeManager
+1.修改配置文件名字
+ mv  etc/hadoop/mapred-site.xml{.template,}
+ vim etc/hadoop/mapred-site.xml
+ <configuration>
+   <property>
+     <name>mapreduce.framework.name</name>   //分布式计算框架
+     <value>yarn</value>		//集群使用yarn,单机使用local
+   </property>
+ </configuration>
+ vim etc/hadoop/mapred-site.xml
+ <configuration>
+   <property>
+     <name>yarn.resourcemanager.hostname</name>  //指定resourcemanager主机
+     <value>mynn01</value>    //主机名或IP地址
+   </property>
+   <property>
+     <name>yarn.nodemanager.aux-services</name>  //分片数据使用的计算框架
+     <value>mapreduce_shuffle</value>    //计算框架名称
+   </property>
+ </configuration>
+2.同步所有主机配置文件/usr/local/hadoop
+3.启动服务./sbin/start-yarn.sh
+4.检查,验证jps
+ ./bin/yarn node -list
+
+HDFS基本使用
+ ./bin/hadoop fs -shell命令    //基本相同,可以直接回车看选项
+ 不同点:
+ touchz   //创建文件,同shell中的touch
+ get	//将虚拟磁盘文件下载到本地
+ put	//将本地磁盘文件上传到虚拟磁盘
+ ./bin/hadoop fs -ls /      //此处/实际路径hdfs://mynn01:9000/
+ 配置文件core-site.xml文件中fs.defaultFS定义的路径
+ 分析数据./bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.6.jar wordcount /abc /bbb
+
+hadoop集群至少上百台
+节点管理
+HDFS节点管理DataNode
+1.增加节点(扩容)
+ 新建一台虚拟机,禁用selinux,firewalld,ssh免密,安装java软件包,修改/etc/hosts文件
+ 在NameNode主机修改slaves文件增加节点,拷贝hosts文件和hadoop目录到所有主机
+ 在新增节点启动datanode服务:./sbin/hadoop-daemon.sh start datanode
+ 设置同步带宽,并同步数据:
+  ./bin/hdfs dfsadmin -setBalancerBandwidth 60000000  //设置带宽
+  ./sbin/start-balancer.sh   //同步数据
+ 查看集群状态:./bin/hdfs dfsadmin -report
+2.修复节点
+ 基本与增加节点一致,注意IP和主机名不要变更,上线后会自动恢复数据
+3.删除节点
+ 在NameNode主机修改配置文件hdfs-site.xml
+ <property>
+   <name>dfs.hosts.exclude</name>	//要删除的主机
+   <value>/usr/local/hadoop/etc/hadoop/delhosts</value>   //主机名写入的文件
+ </property>
+ 数据迁移:./bin/hdfs dfsadmin -refreshNodes 
+ 状态status:Decommissioned  表示迁移完成   //-report查看状态
+ 
+yarn节点管理NodeManager
+1.增加节点
+ 同上配置一台主机后
+ ./bin/yarn-daemon.sh start nodemanager 	//启动角色
+2.删除节点
+ ./bin/yarn-daemon.sh stop nodemanager	//停止角色
+ ./bin/yarn node -list 	//查看节点,在ResourceManager上查看
+
+NFS网关
+用途:用户可以直接挂载使用HDFS集群存储数据
+注意事项:在非安全模式下,运行网关进程的用户是代理用户
+	 在安全模式下,kerberos keytab中的用户是代理用户
+
+调试:出现错误时,日志排错(log4j.property)
+ -log4j.logger.org.apache.hadoop.hdfs.nfs=DEBUG
+ -log4j.logger.org.apache.hadoop.oncrpc=DEBUG
+
+1.创建2台虚拟机,1台做nfsgw,1台做客户端
+2.在nfsgw上配置 /etc/hosts文件,告诉所有节点信息
+ 192.168.1.10 mynn01
+ 192.168.1.11 node1
+ 192.168.1.12 node2
+ 192.168.1.13 node3
+ 192.168.1.14 nfsgw
+3.创建代理用户在两台机nfsgw,mynn01(用户名,uid和gid必须一致)
+ groupadd -g 888 nfsuser
+ useradd -u 888 -g 888 -r nfsuser   //-r创建系统账号
+4.HDFS集群授权
+ 停止HDFS集群, ./sbin/stop-all.sh
+ 配置core-site.xml文件
+ <property>
+   <name>hadoop.proxyuser.nfsuser.groups</name>  //挂载点用户所使用的组
+   <value>*</value>   //*代表所有
+ </property>
+ <property>
+   <name>hadoop.proxyuser.nfsuser.hosts</name>   //挂载点主机地址
+   <value>*</value>
+ </property>
+ 非安全模式下,运行nfs网关的用户为代理用户
+ 同步配置文件到所有主机/etc/hosts和/usr/local/hadoop
+ 启动hdfs集群 ./sbin/start-dfs.sh
+ 验证集群配置 jps  ./bin/hdfs dfsadmin -report
+5.在nfsgw主机上操作
+ 安装java-1.8.0-openjdk-devel
+ 拷贝 mynn01:/usr/local/hadoop  到本机
+ 修改hdfs-site.xml文件
+ <property>
+   <name>nfs.exports.allowed.hosts</name>  //设置用户权限
+   <value>* rw</value>   //允许所有主机读写
+ </property>
+ <property>
+   <name>nfs.dump.dir</name>    //存储客户端无序的写操作目录
+   <value>/var/nfstmp</value>   //具体目录地址
+ </property>
+ 创建临时存储目录:mkdir /var/nfstmp
+ 修改权限:chown nfsuser.nfsuser /var/nfstmp
+ 设置ACL权限:setfacl -m u:nfsuser:rwx /usr/local/hadoop/logs
+6.启动服务nfsgw服务,在nfsgw主机
+ 检查系统是否有rpcbind和nfs-utils软件:rpm -qa | grep -P "rpcbind|nfs"
+ 若有需卸载,并重启系统reboot
+ 必须先启动portmap,后启动nfs
+ 启动portmap必须是root用户
+ ./sbin/hadoop-daemon.sh --script ./bin/hdfs start portmap
+ 启动nfs3必须是nfsuser代理用户
+ ./sbin/hadoop-daemon.sh --script ./bin/hdfs start nfs3
+7.验证 jps
+ 在客户端安装nfs-utils软件
+ mount -t nfs -o vers=3,proto=tcp,nolock,noatime,sync 192.168.1.14:/ 本地目录
+ vers=3(只能使用版本3)
+ proto=tcp(只能使用TCP协议)
+ nolock(不支持NLM)
+ noatime(禁用时间更新)
+ sync(避免存盘写入)
+
+
+
+
 
 
 
