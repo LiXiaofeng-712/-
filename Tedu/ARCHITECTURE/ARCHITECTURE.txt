@@ -1424,6 +1424,9 @@ NN2: mynn02
 #-----------------------------------------------------#
 ALL:  同步配置到所有集群机器
   for i in mynn02 node1 node2 node3; do rsync -aSH --delete /usr/local/hadoop ${i}:/usr/local/ & done
+nodeX: 启动zookeeper服务
+  /usr/local/zookeeper/bin/zkServer.sh start
+  /usr/local/zookeeper/bin/zkServer.sh status
 NN1: 初始化ZK集群  ./bin/hdfs zkfc -formatZK
 
 nodeX:  启动 journalnode 服务
