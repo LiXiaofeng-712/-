@@ -1202,6 +1202,68 @@ NFS网关
  noatime(禁用时间更新)
  sync(避免存盘写入)
 
+DRBD+heartbeat架构
+
+nfs高可用集群项目
+https://cloud.tencent.com/developer/information/nfs%E9%AB%98%E5%8F%AF%E7%94%A8
+
+#########################################################################
+
+Day07
+
+常用组件Zookeeper
+是什么
+ 是一个开源的分布式应用程序协调服务
+能做什么
+ 用来保证数据在集群间的事务一致性
+应用场景
+ 集群分布式锁、集群统一命名服务、分布式协调服务
+角色与特性
+ Leader：接受所有Follower的提案请求并同一协调发起提案的投票，负责与所有的Follower进行内部数据交换
+ Follower：直接为客户端服务并参与提案的投票，同时与Leader进行数据交换
+ Observer：直接为客户端服务但并不参与提案的投票，同时也与Leader进行数据交换
+角色与选举(具体查看PPT)
+ Leader是通过选举产生，必须得到n/2+1台服务器的投票，所以一般由奇数台服务器组成，
+ 参与投票的角色数量少于一半则集群会停止服务
+zookeeper原理与设计
+ Leader所有写相关操作，Follower读操作，observer负责读操作不参与投票
+ 由于leader所有写操作需得到半数以上服务器投票才可以写，然后通知所有服务器同步写入的数据，所以数据量大会制约其性能,observer解决了其性能，提高可读性且不影响写操作性能
+
+安装配置zookeeper
+1.解压zookeeper压缩包，并移动到/usr/local/zookeeper下
+2.修改配置文件
+  改名mv conf/zoo_{sample.,}cfg
+  server.1=node1:2888:3888	//servier.id不可以重复
+  server.2=node2:2888:3888
+  server.3=node3:2888:3888
+  server.4=mynn01:2888:3888:observer   //observer角色才需要声明
+3.同步文件到所有主机
+  rsync -aSH --delete /usr/local/zookeeper node1:/usr/local/ &
+  ...node2...node3
+  所有主机创建datadir指定目录：/tmp/zookeeper
+4.所有主机创建自己对应的myid文件
+  echo 4 > /tmp/zookeeper/myid
+  ssh node1 'echo 1 > /tmp/zookeeper/myid'
+  ...node2....node3
+5.需所有节点启动服务，进行选举
+  /usr/local/zookeeper/bin/zkServer.sh start   //启动服务，status查看角色状态
+6.Zookeeper管理文档
+ http://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html 
+ 四字命令：socat - TCP:node1:2181
+ 
+Hadoop高可用
+NameNode是HDFS的核心配置,管理所有数据,在集群中至关重要
+官方提供了两种高可用方案:HDFS+NFS   HDFS+QJM
+
+
+
+
+
+
+
+
+
+
 
 
 
