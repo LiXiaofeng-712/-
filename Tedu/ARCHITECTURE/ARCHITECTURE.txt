@@ -1247,13 +1247,221 @@ zookeeper原理与设计
   ...node2....node3
 5.需所有节点启动服务，进行选举
   /usr/local/zookeeper/bin/zkServer.sh start   //启动服务，status查看角色状态
+  /usr/local/zookeeper/bin/zkServer.sh stop  //停止服务
 6.Zookeeper管理文档
  http://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html 
  四字命令：socat - TCP:node1:2181
  
+Kafka
+是什么
+ -是由LinkedIn开发的一个分布式的消息系统
+ 
+ 
+安装配置
+1.解压kafka压缩包
+2.移动到/usr/local/kafka,并改名
+3.修改配置文件config/server.properties
+ broker.id=5   //id值不可相同
+ zookeeper.connect=node1:2181,node2:2181,node3:2181   //指定zookeeper主机
+ 拷贝/usr/local/kafka到其他主机
+4.启动服务
+ /usr/local/kafka/bin/kafka-server-start.sh -daemon /usr/local/kafka/config/server.properties
+5.验证
+ 创建一个topic(node1)
+  ./bin/kafka-topics.sh --create --partitions 1 --replication-factor 1 --zookeeper localhost:2181 --topic mymsg
+ 生产者,发送消息(node2)
+  ./bin/kafka-console-producer.sh --broker-list localhost:9092 --topic mymsg
+ 消费者，查看消息(node3)
+  ./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic mymsg
+ 
 Hadoop高可用
 NameNode是HDFS的核心配置,管理所有数据,在集群中至关重要
-官方提供了两种高可用方案:HDFS+NFS   HDFS+QJM
+官方提供了两种高可用方案:
+HDFS+NFS：2台namenode，zookeeper校验，zkf检查集群，nfs(数据存储方式),需配置nfs高可用   
+HDFS+QJM：2台namenode，zookeeper校验，zkf检查集群，journalNode配置高可用
+两台namenode，一主一备，备从JNS同步数据,不需要secondary小密角色了
+
+安装部署HDFS高可用
+架构
+ 192.168.1.10 mynn01  #namenode,resourcemanager
+ 192.168.1.20 mynn02  #namenode,resourcemanager
+ 192.168.1.11 node1   #ZK,datanode,nodemanager,JNS
+ 192.168.1.12 node2   #ZK,datanode,nodemanager,JNS
+ 192.168.1.13 node3   #ZK,datanode,nodemanager,JNS
+
+新建一台namenode主机，192.168.1.20
+将mynn01的/usr/local/hadoop同步到mynn02
+同步所有主机/etc/hosts
+安装java-1.8.0-openjdk-devel
+ssh免密登陆，将mynn01的/root/.ssh目录同步到mynn02，并关闭yes提示
+
+停止所有主机hadoop和kafka
+/usr/local/hadoop/sbin/stop-all.sh
+/usr/local/kafka/bin/kafka-server-stop.sh
+清空所有主机HDFS数据
+rm -f /var/hadoop/*
+
+修改配置文件 
+core-site.xml  
+思路：1.指定默认主机地址，自定义一个组
+      2.配置zk的具体主机和端口
+  <property>
+    <name>fs.defaultFS</name>	//默认dhfs主机
+    <value>hdfs://nsd1809</value>   //将2台namenode放入一个自定义的组中
+  </property>
+  <property>
+    <name>ha.zookeeper.quorum</name>   //配置zookeeper主机
+    <value>node1:2181,node2:2181,node3:2181</value>   //具体主机和端口
+  </property>
+
+hdfs-site.xml  
+思路：1.定义组名，需与core-site.xml中一致
+      2.为两台namenode在组中定义角色
+      3.对应角色的主机
+      4.指定两台主机rpc通信的端口
+      5.指定数据存储在JSN中的路径
+      6.指定JSN日志存储的路径
+      7.定义存储的类
+      8.指定故障处理方式ssh
+      9.指明ssh密钥存储的位置
+      10.开启故障自动切换
+  <property>
+    <name>dfs.nameservices</name>   //定义组名
+    <value>nsd1809</value>
+  </property>
+  <property>
+    <name>dfs.ha.namenodes.nsd1809</name>  //指定集群2个namenode名字
+    <value>nn1,nn2</value> 	//角色名
+  </property>
+  <property>
+    <name>dfs.namenode.http-address.nsd1809.nn1</name>  //对应的主机
+    <value>mynn01:50070</value>
+  </property>
+  <property>
+    <name>dfs.namenode.http-address.nsd1809.nn2</name>
+    <value>mynn02:50070</value>
+  </property>
+  <property>
+    <name>dfs.namenode.rpc-address.nsd1809.nn1</name>  //rpc通信端口
+    <value>mynn01:8020</value>
+  </property>
+  <property>
+    <name>dfs.namenode.rpc-address.nsd1809.nn2</name>
+    <value>mynn02:8020</value>
+  </property>
+  <property>
+    <name>dfs.namenode.shared.edits.dir</name>  //指定namenode元数据存储在JNS中的路径
+    <value>qjournal://node1:8485;node2:8485;node3:8485/nsd1809</value>
+  </property>
+  <property>
+    <name>dfs.journalnode.edits.dir</name>  //定义JNS日志文件存储路径
+    <value>/var/hadoop/journal</value>
+  </property>
+  <property>
+    <name>dfs.client.failover.proxy.provider.nsd1809</name>  //定义namenode存储的类
+    <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProvider</value>
+  </property>
+  <property>
+    <name>dfs.ha.fencing.methods</name>  //定义故障处理方式ssh
+    <value>sshfence</value>
+  </property>
+  <property>
+    <name>dfs.ha.fencing.ssh.private-key-files</name>  //定义私钥的位置
+    <value>/root/.ssh/id_rsa</value>
+  </property>
+  <property>
+    <name>dfs.ha.automatic-failover.enabled</name>  //开启自动故障切换
+    <value>true</value>
+  </property>
+
+yarn-site.xml
+思路：1.启用高可用集群
+      2.声明两个resourcemanager角色
+      3.指明两个角色对应的主机
+      4.开启resourcemanager的配置检测
+      5.指定存储的类
+      6.指定zk的地址
+      7.声明集群的标志
+    <property>
+        <name>yarn.resourcemanager.ha.enabled</name>  //打开高可用集群
+        <value>true</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.ha.rm-ids</name>  //声明两个角色
+        <value>rm1,rm2</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.recovery.enabled</name>  //开启配置检测
+        <value>true</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.store.class</name>  //存储的类
+ <value>org.apache.hadoop.yarn.server.resourcemanager.recovery.ZKRMStateStore</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.zk-address</name>  //zk的地址
+        <value>node1:2181,node2:2181,node3:2181</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.cluster-id</name>  //集群标志，表示一个集群
+        <value>yarn-ha</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.hostname.rm1</name>  //两个角色对应的主机
+        <value>mynn01</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.hostname.rm2</name>
+        <value>mynn02</value>
+    </property>
+    <property>
+---------------------启动服务--------------------------
+初始化启动集群
+ALL: 所有机器
+nodeX： node1    node2    node3
+NN1: mynn01
+NN2: mynn02
+#-----------------------------------------------------#
+ALL:  同步配置到所有集群机器
+  for i in mynn02 node1 node2 node3; do rsync -aSH --delete /usr/local/hadoop ${i}:/usr/local/ & done
+NN1: 初始化ZK集群  ./bin/hdfs zkfc -formatZK
+
+nodeX:  启动 journalnode 服务
+        ./sbin/hadoop-daemon.sh start journalnode
+
+NN1: 格式化  ./bin/hdfs  namenode  -format
+NN2: 数据同步到本地 /var/hadoop/dfs
+
+NN1: 初始化 JNS
+        ./bin/hdfs namenode -initializeSharedEdits
+
+nodeX: 停止 journalnode 服务
+        ./sbin/hadoop-daemon.sh stop journalnode
+#-----------------------------------------------------#
+启动集群
+NN1: ./sbin/start-all.sh
+NN2: ./sbin/yarn-daemon.sh start resourcemanager
+
+查看集群状态
+./bin/hdfs haadmin -getServiceState nn1
+./bin/hdfs haadmin -getServiceState nn2
+./bin/yarn rmadmin -getServiceState rm1
+./bin/yarn rmadmin -getServiceState rm2
+
+./bin/hdfs dfsadmin -report
+./bin/yarn  node  -list
+
+访问集群：
+./bin/hadoop  fs -ls  /
+./bin/hadoop  fs -mkdir hdfs://nsd1809/input
+
+验证高可用，关闭 active namenode
+./sbin/hadoop-daemon.sh stop namenode
+./sbin/yarn-daemon.sh stop resourcemanager
+
+恢复节点
+./sbin/hadoop-daemon.sh stop namenode
+./sbin/yarn-daemon.sh stop resourcemanager
 
 
 
