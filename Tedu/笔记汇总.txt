@@ -4987,6 +4987,7 @@ Day02
     5)测试配置
      maxadmin -uadmin -pmariadb -P端口
    6)读写分离测试
+    mysql -u测试用户 -p密码 -P读写服务器配置端口 -h读写分离服务器地址
      写入后查看主库和从库是否都有数据，有表示从主库写入
      读入测试可以在从库加入主库不存在的数据，进行查询
 二、mysql多实例
@@ -5049,7 +5050,7 @@ MHA部署
         relay_log_purge=off		//不自动删除中继日志文件
       从库
         server_id=
-       >change master to
+        change master to
         master_host=主机IP地址
         master_user=主从用户
         master_password=主从密码
@@ -7827,6 +7828,1484 @@ docker run -p 物理机端口:容器端口 -itd 镜像 //-p将容器端口映射
 
 
 K8S软件，自行扩展
+#########################################################################
+Day01
+
+分布式ELK平台
+
+ELK简介
+ 是一整套解决方案,是三个软件产品的首字母缩写
+ ELK分别代表
+   Elasticsearch:负责日志检索和存储(nosql数据库角色)
+   Logstash:负责日志的收集和分析处理(类似php的功能)
+   Kibana:负责日志的可视化(web服务器角色)
+ 这三款软件都是开源的,通常配合使用
+
+ELK能做什么
+ 分布式日志数据集中式查询和管理
+ 系统监控,包含系统硬件和应用各个组件的监控(不同于zabbix,单个用户大访问也可以监控到)
+ 故障排查
+ 安全信息和事件管理
+ 报表功能
+ 
+Elasticsearch
+ 特点
+  -实时分析
+  -分布式实时文件存储，将每一个字段编入索引
+  -文档导向，所有的对象全部是文档
+  -高可用性，易扩展，支持集群、分片和复制
+  -接口友好，支持JSON
+ 缺点
+  -没有典型意义的事务
+  -是一种面向文档的数据库
+  -没有提供授权和认证特性
+ 相关概念
+  -Node:装有一个ES服务器的节点
+  -Cluster:有多个Node组成的集群
+  -Document:一个可被搜索的基础信息单元
+  -Index：拥有相似特征的文档的集合
+  -Type：一个索引中可以定义一种或多种类型
+  -Filed：是ES的最小单位，相当于数据的某一列
+  -Shards：索引的分片，每一个分片就是一个Shard
+  -Replicas：索引的拷贝
+ SQL与NoSQL
+ -DB -> Databases -> Tables -> Rows -> Columns
+  -关系型    数据库          表          行          列
+ -ES -> Indices -> Types -> Documents -> Fields
+ -ES      索引         类型         文档         域(字段)
+
+组件elasticsearch集群
+1.配置虚拟机(ip:192.168.1.11-15,name:es1-5,/etc/hosts配置五台主机)
+2.安装软件包java-1.8.0-openjdk elasticsearch
+3.修改配置文件/etc/elasticsearch/elasticsearch.yml
+ 17：cluster.name: 集群名字
+ 23：node.name: 本机主机名
+ 54：network.host: 0.0.0.0(允许访问的网段)
+ 68：discovery.zen.ping.unicast.hosts: ["各主机名","","",...](可以只写2，3个，但启动服务时，必须先启动此处声明的主机，否则其他节点会找不到集群)
+4.启动验证 systemctl start elasticsearch
+  http://IP:9200   //验证单台elasticsearch是否正常
+  http://IP/_cluster/health?pretty  //验证集群是否正常
+ 
+HTTP协议
+http请求由三部分组成：请求行、消息报头、请求正文
+http请求方法
+ 常用方法：GET，POST，HEAD
+ 其他方法：OPTIONS，PUT，DELETE，TRACE，CONNECT
+ES常用
+ PUT：增
+ DELETE：删
+ POST：改
+ GET：查
+系统命令curl常用参数
+ -A  修改请求agent
+ -X  设置请求方法
+ -i  显示返回头信息
+ curl -XPUT 118.144.89.24/info.php
+ 
+ES插件使用
+常用插件
+ head插件
+   -它展现ES集群的拓扑结构，并且可以通过它来进行索引(index)和节点(node)级别的操作
+   -它提供一组针对集群的查询API，并将结果以json和表格式形式返回
+   -它提供一些快捷菜单，用以展现集群的各种状态
+ kopf插件
+   -是一个ElasticSearch的管理工具
+   -它提供了对ES集群操作的API
+ bigdesk插件
+   -是elasticsearch的一个集群监控工具
+   -可以通过它来查看es集群的各种状态，如：cup、内存使用情况，索引数据、搜索情况，http连接数等
+ES插件的安装、查看
+ /usr/share/elasticsearch/bin/plugin list   //查看安装的插件
+ /usr/share/elasticsearch/bin/plugin install file:///文件目录  //安装插件
+ /usr/share/elasticsearch/bin/plugin remove  //删除插件
+ http://IP:9200/_plugin/插件名    //打开插件
+ 
+RESTful API调用
+ -检查集群、节点、索引的健康度、状态和统计
+ -管理集群、节点、索引的数据及元数据
+ -对索引进行CRUD操作及查询操作
+ -执行其他高级操作如分页、排序、过滤等
+POST或PUT数据使用json格式
+
+JSON简介
+ JSON是什么
+   JSON是JavaScript对象表示法,它是一种基于文本独立于语言的轻量级数据交换格式
+   JSON中的分隔符限于单引号、小括号、中括号、大括号、冒号、逗号
+ JSON特性
+   JSON是纯文本
+   JSON具有自我描述性(人类可以读懂)
+   JSON具有层及结构(值中存在值,嵌套)
+   JSON可通过JavaScript进行解析
+ JSON语法规则
+   数据在名称/值对中
+   数据由逗号分隔
+   大括号保存对象
+   中括号保存数组
+   小括号表示分组
+ JSON数据的书写格式："key":"values"
+ JSON复合复杂类型：
+   { "诗人":
+     [ {"李白":"诗仙","年代":"唐"},
+      {"李白":"诗仙","年代":"唐"},
+      {"李白":"诗仙","年代":"唐"},
+      {"李白":"诗仙","年代":"唐"}
+     ]
+   }
+
+RESTful API简单使用
+ _cat API查询集群状态，节点信息
+ curl http://IP:9200/_cat/?h  //帮助信息，查看详细参数
+ curl http://IP:9200/_cat/xxx?v  //显示详细信息
+ 常用的xxx参数：health(集群健康状态)、master(主库信息)、nodes(集群主机信息)、shards(索引和数据保存信息)、indices(索引信息)
+ 
+命令创建一个索引，json格式
+curl -XPUT http://IP:9200/索引名称  -d '     //-d表示向服务器发送数据
+{
+  "settings":{
+    "index":{
+      "number_of_shards":5,
+      "number_of_replicas":1
+    }
+  }
+}'
+ 
+增加
+curl -XPUT http://192.168.1.11:9200/索引名/类型名/id -d '{
+"姓名": "何南海",
+"年龄": "不详",
+"性别": "不详"
+}'
+修改
+curl -XPOST http://192.168.1.11：9200/索引名/类型名/id/_update -d '{
+"doc":{
+ "性别": "男"
+}
+}'
+删除
+curl -XDELETE http://192.168.1.11：9200/索引名/类型名/id
+curl -XDELETE http://192.168.1.11：9200/*   //删除数据库所有信息
+查询
+curl -XGET http://192.168.1.11：9200/索引名/类型名/id   //加?pretty竖排显示
+ 
+kibana
+ 数据可视化平台工具
+特点：
+ -灵活的分析和可视化平台
+ -实时总结流量和数据的图表
+ -为不同的用户显示直观的界面
+ -即使分享和嵌入的仪表板
+安装kibanna
+ 装包kibana
+ 修改配置文件/opt/kibana/config/kibana.yml
+  2 server.port: 5601    //若把端口改为80，可以成功启动kibana，但ss时没有端口，没有监听80端口，服务里面写死了，不能用80端口，只能是5601这个端口
+  5 server.host: "0.0.0.0"        //服务器监听地址
+  15 elasticsearch.url: http://192.168.1.11:9200   //声明地址，从哪里查，集群里面随便选一个
+  23 kibana.index: ".kibana"    //kibana自己创建的索引
+  26 kibana.defaultAppId: "discover"    //打开kibana页面时，默认打开的页面 discover
+  53 elasticsearch.pingTimeout: 1500    //ping检测超时时间
+  57 elasticsearch.requestTimeout: 30000    //请求超时
+  64 elasticsearch.startupTimeout: 5000    //启动超时
+  
+导入数据使用_bulk,POST
+ -批量导入数据使用POST方式,数据格式为json,url编码使用data-binary
+ -文件中没有index配置的,需要在ur里面定制index和type
+ curl -XPOST http://192.168.1.11:9200/_bulk --data-binary @json文件
+ 
+查询导入的数据使用_mget,GET
+ curl -XGET http://192.168.1.15:9200/_mget?pretty -d '{
+ "docs":[
+   {"_index": "索引名",
+    "_type" : "类型名",
+     "_id" : "id值"
+    },
+    ...
+ ]
+ }'
+
+
+curl -XGET http://192.168.1.15:9200/_mget?pretty -d '{
+ "docs":[
+   {"_index" : "shakespeare",
+     "_type" : "line",
+       "_id" : "1"
+    },
+   {"_index" : "accounts",
+     "_type" : "type",
+       "_id" : "1"
+    },
+   {"_index": "logstash-2015.05.20",
+    "_type" : "log",
+     "_id" : "AWhZfKgVi0F9tdPUkl51"
+    }
+    ]}'
+在图形界面http://192.168.1.20:5601/制作图表
+###########################################################################
+
+Day02
+
+Logstash
+是什么:一个数据采集、加工处理以及传输的工具
+特点：
+  -所有类型的数据集中处理
+  -不同模式和格式数据的正常化
+  -自定义日志格式的迅速扩展
+  -为自定义数据源轻松添加插件
+Logstash安装
+  -依赖Java环境，需要安装java-1.8.0-openjdk
+  -没有默认的配置文件，需要手动设置
+  -安装在/opt/logstash
+  
+百度搜索金步国作品集(此人爱好翻译官方手册)
+httpd.apache.org  //官方寻找手册
+日志格式logformat  
+Http默认日志文件		/var/log/httpd/access_log
+访问用户IP - 访问用户名 访问具体时间 访问协议 访问结果返回值 发送文件大小 客户使用系统 使用浏览器 
+ 
+logstash工作结构
+ input   负责收集日志，读
+ filter  负责处理日志，加工
+ output  负责输出日志，写
+
+书写logstash配置文件
+vim /etc/logstash/logstash.conf
+input{
+  beats {
+    port => 5044
+  }
+  file {
+    path => [ "/tmp/a.log","...",... ]    //定义读取文件位置
+    sincedb_path => "/var/lib/logstash/since.db"  //指定文件记录上次读取位置
+    start_position => "beginning"    //定义第一次读取从文件头开始读取
+    type => "apache.log"    //自定义类型，方便区分
+  }
+  tcp {
+    mode => "server"     //默认为服务端,若为客户端以下为去寻找的主机和端口
+    host => "0.0.0.0"    //监听的主机地址
+    port => 8888  	//监听的端口
+    type => "tcp.log"    //类型，自定义
+  }
+  udp {
+    port => 8888
+    type => "udp.log"
+  }
+  syslog {
+    type => "sys.log"
+  }
+}
+filter{
+  if [type] == "weblog" {  //匹配filebeat配置文件中的document_type
+  grok {
+    match  => { "message" => "(?<ip>[0-9.]+) (?<>) \[(?<time>.+)\] \"(?<method>[A-Z]+) (?<ur>.+) (?<ver>[^\"]+)\" (?<req>[0-9]+) (?<size>[0-9]+) \"(?<url>.*)\" \"(?<web>.*)\""}
+  }
+  }
+}
+output{
+  stdout { codec => "rubydebug" }    //定义输出格式
+  if [type] == "weblog" {  //匹配到类型后再执行下列命令
+  elasticsearch {
+    hosts => ["IP","IP",...]   //数据库地址
+    index => "索引名"      //要存到哪个索引中
+    flush_size => 2000	//超过2000字节写一次，性能优化
+    idle_flush_time => 10  //10分钟写入一次
+  }
+  }
+} 
+/opt/logstash/bin/logstash -f 配置文件路径  //开启logstash
+输出格式：事件戳  主机名  数据
+
+web客户端配置
+vim /etc/rsyslog.conf
+增加:local0.info  @@目标主机IP:514    //发送local0.info的日志到哪里
+systemctl restart rsyslog
+模拟产生日志
+logger -p local0.info(日志文件) -t weblog(主题) "内容"
+安装filebeat
+修改配置文件/etc/filebeat/filebeat.yml
+- /var/log/日志路径
+document_type: 自定义类型
+logstash:	//打开注释
+hosts: ["logstash主机IP:5044"]
+systemctl start filebeat
+
+
+
+
+插件
+备注：若不会写配置文件可以找帮助，插件文档的位置：
+https://www.elastic.co/guide/en/logstash/current/index.html
+https://github.com/logstash-plugins
+/opt/logstash/bin/logstash-plugin list   //查看已有插件列表
+logstash-插件使用的区域()-具体使用方式  //插件命名格式
+codec：用于所有区域，编码格式
+input：只能用于本区域，读取数据
+filter：只能用于本区域，处理数据
+output：只能用于本区域，输出数据
+
+shell的网络重定向，man bash
+发送tcp数据：echo xxx > /dev/tcp/目标IP/端口
+发送udp数据：echo xxx > /dev/tcp/目标IP/端口
+调试shell脚本时在#!/bin/bash -x可以显示运行过程
+-\S  //匹配非空白
+-\s  //匹配空白
+-\d  //匹配数字
+
+
+
+
+YAML简介
+ YAML是什么
+    是一个可读性高，用来表达数据序列的格式
+   YAML(YAML Ain't Markup Language)
+   YAML参考了多种语言
+ YAML基础语法
+  YAML结构通过空格来展示
+   数组使用"- "来表示
+   键值对使用": "来表示
+  YAML使用一个固定的缩进风格表示数据层及结构关系
+   一般每个缩进级别由两个以上空格组成
+   #表示注释
+ 注意：
+   不要使用tab，缩进是初学者容易出错的地方之一
+   同一层级缩进必须对齐
+ YAML的键值表示方法
+   采用冒号分隔
+   ：后面必须有一个空格
+   YAML键值对：
+    "key":"values"
+    "key":
+      - "values"
+      - "values"
+     key:
+          - 
+          key:values
+          key:values
+          - 
+          key:values
+          key:values   
+          - 
+          key:values
+          key:values   
+
+#########################################################################
+
+Day03
+
+ansible简介
+ ansible可以实现
+   -自动化部署APP
+   -自动化管理配置项
+   -自动化持续交付
+   -自动化(AWS)云服务管理
+ ansible优点
+   -只需要SSH和Python即可使用
+   -无客户端
+  -ansible功能强大，模块丰富
+   -上手容易，门槛低
+   -基于Python开发，做二次开发更容易
+   -使用公司比较多，社区活跃
+ ansible特性
+   -模块化设计，调用特定的模块完成特定任务
+   -基于Python语言实现
+   -其模块支持JSON等标准输出格式，可以采用任何编程语言重写
+   
+安装ansible
+源码安装：
+  下载源码
+  安装依赖包python-setuptools，python-devel
+  编译python setup.py build
+  安装python setup.py install
+pip方式安装：pip install ansible
+Yum安装：
+ yum install ansible
+ ansible --version   //查看安装信息
+ 
+ad-hoc
+主机管理
+ ansible配置文件查找顺序(可以创建多个cfg文件)
+   -首先检测ANSIBLE_CONFIG变量定义的配置文件,环境变量
+   -其次检查当前目录下的./ansible.cfg文件
+   -再次检查当前用户家目录下~/ansible.cfg文件
+   -最后检查/etc/ansible/ansible.cfg文件
+ /etc/ansible/ansible.cfg是ansible的默认配置文件路径
+修改/etc/ansible/ansible.cfg配置文件
+ 14:inventory   = /etc/ansible/hosts    //指定ansible分组文件目录
+ 61:host_key_checking = False	//关闭主机key检测，连接时不用输入yes
+/etc/ansible/hosts格式
+ [web]     //[组名称]
+ web[1:10] ansible_ssh_user=root ansible_ssh_pass="密码" ansible_ssh_port=端口 等信息   //不连续的分行写，组成员(主机名或IP地址等)
+ ...
+ [app:children]	//添加关键字children，表示下方为组的名称
+ 组名		
+ ...
+ [app:vars]		//关键字vars，表示为app组所有主机定义用户，密码，端口等信息
+ ansible_ssh_pass=123456
+ ...
+ 
+ 查看hosts主机
+ ansible [组名,...] --list-hosts   //显示组中所有主机，用all表示所有组
+配置后端托管主机后测试
+ ansible 组名或主机名 -m ping [-k表示手工输入密码] //ansible会使用ssh尝试去连接托管主机
+
+/etc/ansible/ansible.cfg配置文件inventory参数说明
+ -ansible_ssh_host   //将要连接的远程主机名与你想要设定的主机别名不同，可以通过此变量设置
+ -ansible_ssh_port  //指定ssh端口号
+ -ansible_ssh_user  //默认ssh用户名
+ -ansible_ssh_pass  //ssh密码(这种凡是不安全，建议使用--ask-pass或ssh密钥)
+ -ansible_sudo_pass  //sudo密码(建议使用--ask-sudo-pass)
+ -ansible_sudo_exe  //sudo命令路径(适用1.8及以上版本)
+ -ansible_connection  //与主机的连接类型，如：local，ssh或paramiko
+ -ansible_ssh_private_key_file  //ssh使用的私钥文件，适用于有多个密钥，而不项适用SSH代理的情况
+ -ansible_shell_type  //目标系统的shell类型，默认情况下，命令的执行使用sh语法
+ -ansible_python_interpreter  //目标主机的python路径，适用系统中有多个python或路径不时/usr/bin/python
+
+ansible多人使用时自定义配置文件(静态主机)
+1.创建ansible.cfg文件
+2.在配置文件中添加
+ [defaults]
+ inventory = 分组文件路径
+ host_key_checking = False
+3.在分组文件中添加分组信息
+4.在当前文件路径下执行anzible(执行顺序要牢记)
+
+动态主机
+指将inventory指定的文件/etc/ansible/hosts改为python等各种脚本，按Json格式返回给ansible
+注意主机部分必须时列表格式，Hostdata行中的hosts部分可以省略，但使用时必是hosts
+
+批量执行
+ansible命令基础
+ 格式：ansible <host-pattern> [options]
+ ansible hosts -m modules -a mod args   //ansible通用格式
+ host-pattern  主机或定义的分组
+ 选项：
+  -M  指定模块路径
+  -m  使用模块，默认command模块(远程命令执行命令模块)，常用
+  -a  or --args模块参数，必带
+  -i  imventory文件路径，或可执行脚本
+  -k  使用交互式登陆密码
+  -e  定义变量
+  -v  详细信息，-vvvv开启debug模式
+
+批量部署公钥私钥
+1.ansible主机生成公钥私钥
+ ssh-keygen -N '' -f /root/.ssh/id_rsa -t rsa -b 1024
+2.给所有主机部署公钥
+ ansible all -m authorized_key -a "
+user=root   //给root用户部署密钥
+exclusive=true  //当用户有密钥时，追加进去
+manage_dir=true  //当.ssh目录不存在时，自动授权创建
+key='$(< /root/.ssh/id_rsa.pub)'  //将公钥导入变量key中
+" -k
+3.验证
+ ansible all -m ping 
+
+批量配置管理---模块
+ansible-doc模块
+  -模块的手册相当于shell的man，非常重要
+ -ansible-doc -l    列出所有模块
+ -ansible-doc modulename  查看帮助
+ping模块
+  -测试网络连通性，ping模块没有参数
+  -注：测试ssh的连通性，与命令ping不一样，小心区分
+  
+command模块
+  -默认模块，远程执行命令
+  -用法：ansible host-pattern -m command -a '[args]'
+  注意事项：
+    -该模块通过-a跟上要执行的命令可以直接执行，若命令里有如下字符则执行不成功
+    -'<','>','|','&'等
+    -该模块不启动shell(bash)直接在ssh进程中执行，所有使用到shell(bash)的命令执行都会失败
+shell|raw模块
+ -shell模块用法基本和command一样，区别是shell模块是通过/bin/sh进行执行命令，可以执行任意命令
+ -raw模块，用法和shell模块一样，可以执行任意命令，使用很多系统
+  -区别是raw没有chdir(锁定当前目录)、creates、removes参数
+  -执行以下命令查看结果
+   ansible all -m command -a 'chdir=/tmp touch f1'  //在/tmp下创建f1
+   ansible all -m shell -a 'chdir=/tmp touch f1'  //在/tmp下创建f1
+   ansible all -m raw -a 'chdir=/tmp touch f1'  //指定目录无效
+script模块
+  -在本地写脚本，然后使用script模块批量执行
+  -注意：该脚本包含但不限于shell脚本，只要指定Sha-bang解释器的脚本可运行
+  ansible hosts -m script -a "脚本"
+  
+copy模块
+  -复制文件到远程主机，文件名一模一样
+ -src：本地文件路径，复制远程主机的文件到本地，绝对路径和相对路径都可，路径为目录时会递归复制。若路径以"/"结尾，值复制目录里的内容，负责复制包含目录在内的内容，类似rsync
+ -dest：远程主机路径，必选项。远程主机的绝对路径，如果源文件是一个目录，那该路径必须是目录
+ -backup：覆盖前先备份原文件，备份文件包含时间信息。有两个选项：yes|no
+ -force：若目标主机包含该文件，但内容不同，如果设置为yes，则强制覆盖，设为no，则值有当目标主机的目标位置不存在该文件是才复制。默认为yes
+  -复制文件
+   ansible all -m copy -a "src=/etc/resolv.conf dest=/etc/resolv.conf"
+  -复制目录
+   ansible all -m copy -a "src=/etc/ dest=/etc/"
+   
+lineinfile|replace模块
+  -类似sed的一种行编辑替换模块
+ -path目标文件
+ -regexp正则表达式，匹配要修改的地方
+ -line替换后的结果,匹配到替换一整行
+  ansible all -m lineinfile -a 'path="/etc/selinux/config" regexp="^SELINUX=" line="SELINUX=disabled"'
+ -replace替换指定字符，只修改匹配到的关键词
+   ansible all -m lineinfile -a 'path="/etc/selinux/config" regexp="^(SELINUX=).*" replace="\1disabled"'  //\1复制前面()内的所有内容
+   
+yum模块(大批量安装使用，有报错信息)
+  -使用yum包管理器来管理软件包
+ -config_file：yum的配置文件
+ -disable_gpg_check:关闭gpg_check
+ -disablerepo:不启用某个源
+ -enablerepo:启用某个源
+ -name：要进行操作的软件包名称，多个用逗号分隔，也可以传递一个url或一个本地的rpm包的路径
+ -state：状态(installed,removed,latest)
+  ansible db -m yum -a 'name="mariadb-server" state="installed"'
+service模块
+ -name：服务名
+ -enabled：是否开机启动 yes|no
+ -state：动作(started,stopped,restarted)
+ -sleep:执行restarted，会在stop和start之间沉睡几秒
+  ansible web -m service -a 'name="httpd" state="started"'
+
+setup模块
+  -主要用户获取客户端主机的各种信息，常用参数filter
+ -filter过滤所需信息
+  ansible other -m setup -a "filter=条件"
+##########################################################################
+
+Day04
+一、playbook基础
+ansible七种武器
+1.ansible命令，用于执行临时性的工作，必须掌握
+2.ansible-doc是ansible模块的文档说明，针对每个模块都有详细的说明及应用案例介绍，类似man命令，必须掌握
+3.ansible-console是ansible为用户提供的交互式工具，用户可以在ansible-console虚拟出来的终端上像Shell一样使用ansible内置的各种命令，这为习惯使用Shell交互方式的用户提供良好的使用体验
+4.ansible-galaxy从github上下载管理Roles的一款工具，与python的pip类似
+5.ansible-playbook是日常应用中使用频率最高的命令，工作机制：通过读取先编写号的playbook文件实现批量管理，可以理解为按一定条件组成的ansible任务集，必须掌握
+6.ansible-vault主要用于配置文件加密，如编写的playbook文件中包含敏感信息，不想让他人查看，可用它加密/解密这个文件(任何人都可用此命令加密解密)
+7. -ansible-pull
+   -ansible有两种工作模式pull/push，默认使用push模式工作，pull和push工作模式机制相反
+    -适用场景：有大批量机器需要配置，即使高并发线程依旧要花费很多时间
+    -通常在配置大批量机器的场景下使用，灵活性稍有欠缺，但效率几乎可以无限提升，对运维人员的技术水平和前瞻性规划有较高要求
+   -push被动模式，pull主动模式
+   
+ansible脚本需要YAML格式,输出JSON格式，参数也使用JSON格式
+YAML格式，JSON格式，语法参考第一天
+
+Jinja2模版简介
+playbook的模版引擎，使用python的Jinja2模块处理
+Jinja2模版基本语法
+ -模版的表达式都是包含在分隔符"{{  }}"内的  {{变量/计算/判断}}
+ -控制语句都是包含在分隔符"{%  %}"内的   {%if/for循环%}
+ -模版支持注释，包含在分隔符"{#  #}"内
+Jinja2过滤器
+ -变量可以通过过滤器修改，类似管道(|)作用差不多，也可以用圆括号传递可选参数，多个过滤器可以链式调用
+ -查看文档http://docs.jinkan.org/docs/jinja2/templates.html#builtin-filters
+ 
+playbook
+是什么
+ -用于配置，部署和管理托管主机剧本，通过playbook的详细描述，执行其中一系列任务，使远端素质达到预期状态
+ -其实就是一个脚本，执行一系列命令
+为什么使用
+ -可以反复使用编写的代码，放到不同机器上
+ -执行一些过于复杂的命令时
+语法格式
+ -playbook有YAML语言编写
+ -在同一行中，#之后内容表示注释
+ -同一列表中的元素应该保持相同的缩进
+ -playbook由一个或多个play组成
+ -play中hosts，variables，roles，tasks等对象的表示方法都是键值中间以":"分隔表示
+ -YAML还有一个小的怪癖，他的文件开始行都应该是 --- ，这是YAML格式的一部分，表名文件的开始
+结构
+ -Target：定义将要执行playbook的远程主机组，使用的变量hosts
+ -Variable：定义playbook运行时需要使用的变量，variables
+ -Tasks：定义将要在远程主机上执行的任务列表，使用变量tasks
+ -Handler：定义task执行完成以后需要调用的任务，使用变量handlers
+执行结果
+ 使用ansible-playbook运行playbook文件，输出内容为JSON格式，由不同颜色便于识别 
+  -绿色表示执行成功
+  -黄色代表发生改变
+  -红色代表执行失败
+
+简单的playbook编写 
+cat << eof > ping.yml
+---
+- hosts: all	//指定远程主机组
+  remote_user: root   //指定远程连接主机使用的用户
+  tasks:      //指定执行的任务列表，顺序执行，每台主机都会执行所有任务
+    - ping: 
+eof
+ansible-playbook ping.yml -f 5   //-f并发进程数，默认是5，对于主机是并发，任务是顺序执行
+
+tasks下的name为注释和描述信息
+cat << eof > user1.yml
+---
+- hosts: all
+  remote_user: root
+  tasks: 
+    - name: create user plj	//注释信息
+      user: 	//user模块创建用户
+        name: plj    //参数name指定用户名称
+    - name: change password  
+      shell: echo "123456" | passwd --stdin plj  //shell模块修改密码
+    - shell: chage -d 0 plj
+eof
+
+本案例要求：
+安装Apache并修改监听端口为8080
+修改ServerName配置，执行apachectl -t命令不报错
+设置默认主页hello world
+启动服务并设开机自启
+不能使用shell，script模块
+echo "hello world" > index.html
+cat << eof > http.yml
+---
+- hosts: db
+  remote_user: root
+  tasks: 
+    - yum: 
+        name: httpd
+        state: installed
+    - lineinfile: 
+        path: "/etc/httpd/conf/httpd.conf"
+        regexp: "^Listen"
+        line: "Listen 8080"
+    - replace: 
+        path: "/etc/httpd/conf/httpd.conf"
+        regexp: "^#(ServerName +).*"
+        replace: "\\1localhost"
+    - copy: 
+        src: "index.html"
+        dest: "/var/www/html/index.html"
+        owner: apache	//文件所有者
+        group: apache	//文件所属组
+        mode: 0644	//文件权限
+    - service: 
+        name: httpd
+        state: started
+        enabled: yes
+eof
+  
+二、playbook进阶
+/etc/login.defs   //存放一些用户的各种信息
+语法进阶
+vars:
+  变量: 值
+引用使用：{{变量}}
+cat << eof > user1.yml
+---
+- hosts: all
+  remote_user: root
+  vars: 
+    username: nb
+  tasks: 
+    - user: 	
+        name: "{{username}}"
+    - name: change password
+      shell: echo "123456" | passwd --stdin "{{username}}"
+    - shell: chage -d 0 "{{username}}"
+eof
+ansible-playbook user1.yml -e '{"username": "kk"}'  //-e定义外部变量，优先级高于vars
+
+过滤器："{{'123456'|password_hash('加密方式')}}"   //对密码进行加密
+cat << eof > user1.yml
+---
+- hosts: all
+  remote_user: root
+  vars: 
+    username: dd
+  tasks: 
+    - user: 
+        name: "{{username}}"
+        password: "{{'123456'|password_hash('sha512')}}"  //user模块password默认会将123456写入shadow文件，经过过滤器后可以加密写入
+    - shell: chage -d 0 "{{username}}"
+eof
+
+error
+ansible-playbook对错误的处理
+  -默认情况判断$?,如果值不为0就停止执行
+  -但某些情况我们需要忽略错误继续执行
+1.命令：true(改变$?值为0)、false(改变$?的值为1)  //弊端，一些错误无法发现
+2.使用下列方法即可以跳过错误，继续执行命令，又可以显示报错信息
+cat << eof > user2.yml
+---
+- hosts: web
+  remote_user: root
+  tasks: 
+    - shell: useradd z3
+      ignore_errors: True
+    - shell: echo 123456 | passwd --stdin z3
+eof
+
+handlers
+当关注的资源发生变化时采取的操作
+notify这个action可用于每个play的最后被触发，这样可以避免有多次改变发生时每次都执行指定的操作，取而代之仅在所有的变化发生完成后一次性的执行指定操作
+在notify中列出的操作称为handler，即notify调用handler中定义的操作
+当满足条件时就执行触发器中的动作,修改配置文件应用较多
+cat << eof > http.yml
+---
+- hosts: db
+  remote_user: root
+  tasks: 
+    - yum: 
+        name: httpd
+        state: installed
+    - copy:
+        src: httpd.conf
+        dest: /etc/httpd/conf/httpd.conf
+        owner: root
+        group: root
+        mode: 0644
+      notify:
+        - reload httpd	//指定触发器的name
+    - copy: 
+        src: "index.html"
+        dest: "/var/www/html/index.html"
+        owner: apache	//文件所有者
+        group: apache	//文件所属组
+        mode: 0644	//文件权限
+    - service: 
+        name: httpd
+        state: started
+        enabled: yes
+  handlers: 		//定义触发器
+    - name: reload httpd	//name字段必须填写，上方寻找的依据
+      service:	//指定触发的动作
+        name: httpd
+        state: restarted
+eof
+
+注意事项：
+ -notify调用的是handler段的name定义的串，必须一致，否则达不到触发效果
+ -多个task触发同一个notify的时候，同一个服务只会触发一次
+ -notify可以触发多个条件，在生产环境中往往涉及到某一个配置文件的改变要重起若干服务的场景，handler用到这里非常合适
+ -结合vars可以写出非常通用的服务管理脚本
+ 
+when
+ 满足一定条件触发某一操作，这时候进行条件判断，使用when最佳
+ tasks: 
+   - name: xxx
+        模块: 命令
+     when: 条件      //判断满足条件执行上述命令
+register
+ 保存前一个命令的返回状态，以便在后面调用
+ - 模块: 命令
+  register: result
+ - 模块: 命令
+  when: result   //对上面的结果进行判断，满足执行命令，不满足跳过
+with_items
+ 一个标准循环，可以迭代一个列表或字典，通过{{item}}获取没此迭代的值 
+创建不同用户，设置不同密码和组
+cat << eof > user4.yml
+---
+- hosts: all
+  remote_user: root
+  tasks: 
+    - user: 
+        name: "{{item.name}}"
+        password: "{{item.pwd|password_hash('sha512')}}"
+        group: "{{item.group}}"
+      with_items:
+          - 
+         name: "nb"
+         pwd: "bn"
+         group: "noboady"
+          -
+         name: "dd"
+         pwd: "dd"
+         group: "user"
+          -
+         name: "kk"
+         pwd: "kk"
+         group: "sshd"
+          -
+         name: "jj"
+         pwd: "jj"
+         group: "root"       
+eof
+ 
+with_nested
+ 嵌套循环
+---
+- hosts: web2
+  remote_user: root
+  vars:
+    un: [a, b, c]
+    id: [1, 2, 3]
+  tasks:
+    - name: add users
+      shell: echo {{item}}
+      with_nested:
+        - "{{un}}"
+        - "{{id}}
+
+tags:给指定的任务定义一个标示，可以单独调用
+---
+- hosts: cache
+  remote_user: root
+  tasks:
+    - copy:
+        src: /root/httpd.conf
+        dest:  /etc/httpd/conf/httpd.conf
+        owner: root
+        group: root
+        mode: 0644
+      tags: config_httpd
+      notify:
+        - restart httpd
+  handlers:
+     - name: restart httpd
+       service: name=httpd state=restarted
+ansible-playbook xxx.yml --tags=config_httpd  //单独调用标示的任务
+
+include：引入一个文件
+roles：引入一个文件夹，加强版的include
+一般所需的目录层级有
+vars：变量层
+tasks：任务层
+handlers：触发条件
+files：文件
+template：模板
+default：默认，优先级最低
+
+调试
+debug
+ -检测语法
+  ansible-playbook --syntax-check playbook.yaml   //仅供参考，不准确
+ -测试运行
+  ansible-playbook -C playbook.yaml  //仅供参考，不准确
+ -显示受到影响的主机 
+  ansible-playbook playbook.yaml --list-hosts
+ -显示工作的task --list-tasks
+ -显示将要运行的tag --list-tags
+
+###########################################################################
+Day05
+
+大数据
+大数据的由来
+  随着计算机技术的发展，互联网的普及，信息的积累已经到了一个非常庞大的地步，信息的增长也在不断的加快，随着互联网、物联网建设的加快，信息更是爆炸是增长，收集、检索、统计这些信息越发困难，必须使用新的技术来解决这些问题
+什么是大数据
+  数据指无法在一定时间范围内用常规软件工具进行捕捉、管理和处理的数据集合，需要新处理模式才能具有更强的决策力、洞察发现力和流程优化能力的海量、高增长率和多样化的信息资产
+是指从各种各样类型的数据中，快速获得有价值的信息
+  
+大数据5V特性
+ -Volume(大体量)
+   可以从数百TB到数十百PB、甚至EB的规模
+ -Variety(多样性)
+   大数据包括各种格式和形态的数据
+ -Velocity(时效性)
+   很多大数据需要在一定的时间限度下得到及时处理
+ -Veracity(准确性)
+   处理的结果要保证一定的准确性
+ -Value(大价值)
+   大数据包含很多深度的价值，大数据分析挖掘和利用将带来巨大的商业价值
+大数据与Hadoop
+Hadoop是一种分析和处理海量数据的软件平台
+        是一款开源软件，使用JAVA开发
+        可以提供一个分布式基础架构
+特点：高可靠性、靠扩展性、高效性、高容错性、低成本
+
+Hadoop常用组件以及核心组件有哪些
+ HDFS：Hadoop分布式文件系统（核心组件）
+ MapReduce：分布式计算框架（核心组件）
+ Yarn：集群资源管理系统（核心组件）
+ Zookeeper：分布式协作服务
+ Hbase：分布式列存数据库
+ Hive：基于Hadoop的数据仓库
+ Sqoop：数据同步工具
+ Pig：基于Hadoop的数据流系统
+ Mahout：数据挖掘算法库
+ Flume：日志收集工具
+
+HDFS结构中的角色
+ NameNode:
+   -Master节点，管理HDFS的名称空间(fsimage)和数据块映射信息，配置副本策略，处理所有客户端请求，管理数据存储几份
+ Secondary NameNode：
+   -定期合并fsimage(数据块的位置)和fsedits(文件变更日志)，推送给NameNode
+   -紧急情况下，可辅助回复NameNode
+   -但Secondary NameNode并非NameNode的热备
+ DataNode：
+   -数据存储节点，存储实际的数据，默认存3份
+   -汇报存储信息给NameNode
+ Client：
+   -切分文件
+   -访问HDFS
+   -与NameNode交互，获取文件位置信息
+   -与DataNode交互，读取和写入数据
+ Block：
+   -每块缼省128MB大小
+   -每块可以多个副本
+
+MapReduce结构中角色
+ JobTracker：
+  -Master节点只有一个
+   -管理所有作业/任务的监控、错误处理等
+   -将任务分解成一系列任务，并分派给Task Tracker
+ TaskTracker：
+  -Slave节点，一般是多台
+   -运行Map Task和Reduce Task
+   -并与JobTracker交互，汇报任务状态
+ Map Task：解析每条数据记录，传递给用户编写的map()并执行，将输出结果写入本地磁盘
+   -如果为map-only作业，直接写入HDFS
+ Reducer Task：从Map Task的执行结果中，远程读取输入数据，对数据进行排序，将号苏剧按照分组传递给用户编写reduce函数执行
+ 
+Yarn结构中角色
+ ResourceManager:
+   -处理客户端请求
+   -启动/监控ApplicationMaster
+   -监控NodeManager
+   -资源分配与调度
+ NodeManager：
+   -单个节点上的资源管理
+   -处理来自ResourceManager的命令
+   -处理来自ApplicationMaster的命令
+ Container：
+   -对任务运行环境的抽象，封装了CPU、内存等
+   -多维资源以及环境变量、启动命令等任务运行相关的信息资源分配与调度
+ ApplicationMaster：
+   -数据切分
+   -为应用程序申请资源，并分配给内部任务
+   -任务监控与容错
+ Client：
+   -用户与Yarn交互的客户端程序
+   -提交应用程序、监控应用程序状态，杀死应用程序等
+Yarn的核心思想
+将JobTracker和TaskTacker进行分离，它由下面几大构建组成
+ -ResourceManager一个全局的资源管理器
+ -NodeManager每个节点(RM)代理
+ -ApplicationMaster表示每个应用
+  -每一个ApplicationMaster有多个Container在NodeManager上运行
+
+Hadoop模式：单机、伪分布式(将所有都配置在同一台机)、完全分布式
+单机模式配置
+1.克隆虚拟机，2G内存，2CPU，大于20G磁盘
+  禁用selinux，firewalld
+  配置/etc/hosts ,主机名必须能ping通
+ 192.168.1.10 mynn01
+2.安装hadoop
+ yum -y install java-1.8.0-openjdk-devel
+ tar -xf hadoop-2.7.6.tar.gz
+ mv hadoop-2.7.6 /usr/local/hadoop
+3.rpm -ql java-1.8.0-openjdk   //查找java安装目录
+  修改配置文件/usr/local/hadoop/etc/hadoop-env.sh
+  export JAVA_HOME="/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.131-11.b12.el7.x86_64/jre/"
+  export HADOOP_CONF_DIR=${HADOOP_CONF_DIR:-"/usr/local/hadoop/etc/hadoop"}
+4.使用服务
+ ./bin/hadoop version   //查看版本信息
+ ./bin/hadoop jar(jar命令运行.jar文件) share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.6.jar(jar统计程序，自带) wordcount 要统计的目录 结果保存的目录   //统计目录下文件中单词出现次数
+命令：jps   //查看角色
+这个模式一般用来学习和测试Hadoop的功能
+-测试--统计词频
+官方文档：http://hadoop.apache.org/docs/版本号
+
+
+Hadoop分布式系统文件之完全分布式
+配置文件
+  hadoop-env.sh--环境变量
+  core-site.xml--总的管理配置文件
+  hdfs-site.xml--hdfs组件的配置文件
+  mapred-site.xml--mapreduce组件的配置文件
+  yarn-site.xml--yarn组件的配置文件
+  slaves
+文件格式
+ -Hadoop-env.sh
+   JAVA_HOME
+   HADOOP_CONF_DIR
+ -xml文件配置格式
+   <property>
+     <name>关键字</name>
+     <value>变量值</value>
+     <description>描述</description>
+   </property>
+1.系统规划
+    IP	  主机名        角色
+ 192.168.1.10  mynn01   NameNode,SecondaryNameNode
+ 192.168.1.11  node1    DataNode
+ 192.168.1.12  node2    DataNode
+ 192.168.1.13  node3    DataNode
+2.禁用selinux，firewalld，配置/etc/hosts文件
+3.在node主机安装java-1.8.0-openjdk-devel，并查看java版本，ping，jps
+4.配置ssh信任关系(NameNode)
+ -注意：不能出现要求输入yes情况，每台机都要能登陆成功，包括本机！！！
+ -修改配置文件取消yes输入
+  vim /etc/ssh/ssh_config
+    StrictHostKeyChecking no
+ ssh-keygen -b 2048 -t rsa -N '' -f /root/.ssh/id_rsa
+ ssh-copy-id 192.168.1.11/2/3/localhost
+5.修改配置文件
+ 1)hadoop-env.sh
+   -OpenJDK的安装目录：JAVA_HOME
+   -Hadoop配置文件的存放目录：HADOOP_CONF_DIR
+ 2)core-site.xml
+    上官方查看文档http://hadoop.apache.org/docs/r2.7.6/hadoop-project-dist/hadoop-common/core-default.xml
+    -fs.defaultFS:文件系统配置参数
+    -hadoop.tmp.dir:数据目录配置参数，所有数据的根目录
+   <configuration>
+      <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://mynn01:9000</value>
+      </property>
+      <property>
+        <name>hadoop.tmp.dir</name>
+        <value>/var/hadoop</value>
+      </property>
+    </configuration>
+  在所有主机创建/var/hadoop目录(可以使用ansible)
+ 3)hdfs-site.xml
+    -Namenode:地址声明
+      dfs.namenode.http-address
+    -Secondarynamenode:地址声明
+      dfs.namenode.secondary.http-address
+     -文件冗余份数(原数据+备份总共存储的份数) 
+      dfs.replication
+    <configuration>
+      <property>
+        <name>dfs.namenode.http-address</name>
+        <value>mynn01:50070</value>
+      </property>
+      <property>
+        <name>dfs.namenode.secondary.http-address</name>
+        <value>mynn01:50090</value>
+      </property>
+      <property>
+        <name>dfs.replication</name>
+        <value>3</value>
+      </property>
+    </configuration>
+ 4)slaves
+   只写DataNode节点的主机名
+   node1
+   node2
+   node3
+6.同步配置，Hadoop所有节点的配置参数完全一样，在一台机配置好后，发送给其他主机
+ rsync -aSH --delete /usr/local/hadoop node1:/usr/local/ &
+ ...
+ wait  //等待后台程序运行完成
+7.在namenode上格式化，其他主机不需要
+  ./bin/hdfs namenode -format
+8.启动集群
+  ./sbin/start-dfs.sh
+9.验证角色，检测集群
+  jps  //查看角色
+  ./bin/hdfs dfsadmin -report
+10.日志文件/usr/local/hadoop/logs/
+  文件名格式：hadoop组件-启动用户-角色-主机名.out(启动程序的标准输出)/log(运行日志)
+
+##########################################################################
+
+Day05
+安装部署分布式计算框架MapReduce
+NameNode消耗中等量的磁盘和少量的cpu
+ResourceManager消耗大量内存,少量cpu,少量磁盘I/O
+DataNode消耗最大的是磁盘的I/O,其他相对少很多
+NodeManager消耗cpu和内存,磁盘I/O较大
+
+系统规划
+    IP	  主机名        角色
+ 192.168.1.10  mynn01   NameNode,SecondaryNameNode/ResourceManager
+ 192.168.1.11  node1    DataNode/NodeManager
+ 192.168.1.12  node2    DataNode/NodeManager
+ 192.168.1.13  node3    DataNode/NodeManager
+1.修改配置文件名字
+ mv  etc/hadoop/mapred-site.xml{.template,}
+ vim etc/hadoop/mapred-site.xml
+ <configuration>
+   <property>
+     <name>mapreduce.framework.name</name>   //分布式计算框架
+     <value>yarn</value>		//集群使用yarn,单机使用local
+   </property>
+ </configuration>
+ vim etc/hadoop/mapred-site.xml
+ <configuration>
+   <property>
+     <name>yarn.resourcemanager.hostname</name>  //指定resourcemanager主机
+     <value>mynn01</value>    //主机名或IP地址
+   </property>
+   <property>
+     <name>yarn.nodemanager.aux-services</name>  //分片数据使用的计算框架
+     <value>mapreduce_shuffle</value>    //计算框架名称
+   </property>
+ </configuration>
+2.同步所有主机配置文件/usr/local/hadoop
+3.启动服务./sbin/start-yarn.sh
+4.检查,验证jps
+ ./bin/yarn node -list
+
+HDFS基本使用
+ ./bin/hadoop fs -shell命令    //基本相同,可以直接回车看选项
+ 不同点:
+ touchz   //创建文件,同shell中的touch
+ get	//将虚拟磁盘文件下载到本地
+ put	//将本地磁盘文件上传到虚拟磁盘
+ ./bin/hadoop fs -ls /      //此处/实际路径hdfs://mynn01:9000/
+ 配置文件core-site.xml文件中fs.defaultFS定义的路径
+ 分析数据./bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.6.jar wordcount /abc /bbb
+
+hadoop集群至少上百台
+节点管理
+HDFS节点管理DataNode
+1.增加节点(扩容)
+ 新建一台虚拟机,禁用selinux,firewalld,ssh免密,安装java软件包,修改/etc/hosts文件
+ 在NameNode主机修改slaves文件增加节点,拷贝hosts文件和hadoop目录到所有主机
+ 在新增节点启动datanode服务:./sbin/hadoop-daemon.sh start datanode
+ 设置同步带宽,并同步数据:
+  ./bin/hdfs dfsadmin -setBalancerBandwidth 60000000  //设置带宽
+  ./sbin/start-balancer.sh   //同步数据
+ 查看集群状态:./bin/hdfs dfsadmin -report
+2.修复节点
+ 基本与增加节点一致,注意IP和主机名不要变更,上线后会自动恢复数据
+3.删除节点
+ 在NameNode主机修改配置文件hdfs-site.xml
+ <property>
+   <name>dfs.hosts.exclude</name>	//要删除的主机
+   <value>/usr/local/hadoop/etc/hadoop/delhosts</value>   //主机名写入的文件
+ </property>
+ 数据迁移:./bin/hdfs dfsadmin -refreshNodes 
+ 状态status:Decommissioned  表示迁移完成   //-report查看状态
+ 
+yarn节点管理NodeManager
+1.增加节点
+ 同上配置一台主机后
+ ./bin/yarn-daemon.sh start nodemanager 	//启动角色
+2.删除节点
+ ./bin/yarn-daemon.sh stop nodemanager	//停止角色
+ ./bin/yarn node -list 	//查看节点,在ResourceManager上查看
+
+NFS网关
+用途:用户可以直接挂载使用HDFS集群存储数据
+注意事项:在非安全模式下,运行网关进程的用户是代理用户
+	 在安全模式下,kerberos keytab中的用户是代理用户
+
+调试:出现错误时,日志排错(log4j.property)
+ -log4j.logger.org.apache.hadoop.hdfs.nfs=DEBUG
+ -log4j.logger.org.apache.hadoop.oncrpc=DEBUG
+
+1.创建2台虚拟机,1台做nfsgw,1台做客户端
+2.在nfsgw上配置 /etc/hosts文件,告诉所有节点信息
+ 192.168.1.10 mynn01
+ 192.168.1.11 node1
+ 192.168.1.12 node2
+ 192.168.1.13 node3
+ 192.168.1.14 nfsgw
+3.创建代理用户在两台机nfsgw,mynn01(用户名,uid和gid必须一致)
+ groupadd -g 888 nfsuser
+ useradd -u 888 -g 888 -r nfsuser   //-r创建系统账号
+4.HDFS集群授权
+ 停止HDFS集群, ./sbin/stop-all.sh
+ 配置core-site.xml文件
+ <property>
+   <name>hadoop.proxyuser.nfsuser.groups</name>  //挂载点用户所使用的组
+   <value>*</value>   //*代表所有
+ </property>
+ <property>
+   <name>hadoop.proxyuser.nfsuser.hosts</name>   //挂载点主机地址
+   <value>*</value>
+ </property>
+ 非安全模式下,运行nfs网关的用户为代理用户
+ 同步配置文件到所有主机/etc/hosts和/usr/local/hadoop
+ 启动hdfs集群 ./sbin/start-dfs.sh
+ 验证集群配置 jps  ./bin/hdfs dfsadmin -report
+5.在nfsgw主机上操作
+ 安装java-1.8.0-openjdk-devel
+ 拷贝 mynn01:/usr/local/hadoop  到本机
+ 修改hdfs-site.xml文件
+ <property>
+   <name>nfs.exports.allowed.hosts</name>  //设置用户权限
+   <value>* rw</value>   //允许所有主机读写
+ </property>
+ <property>
+   <name>nfs.dump.dir</name>    //存储客户端无序的写操作目录
+   <value>/var/nfstmp</value>   //具体目录地址
+ </property>
+ 创建临时存储目录:mkdir /var/nfstmp
+ 修改权限:chown nfsuser.nfsuser /var/nfstmp
+ 设置ACL权限:setfacl -m u:nfsuser:rwx /usr/local/hadoop/logs
+6.启动服务nfsgw服务,在nfsgw主机
+ 检查系统是否有rpcbind和nfs-utils软件:rpm -qa | grep -P "rpcbind|nfs"
+ 若有需卸载,并重启系统reboot
+ 必须先启动portmap,后启动nfs
+ 启动portmap必须是root用户
+ ./sbin/hadoop-daemon.sh --script ./bin/hdfs start portmap
+ 启动nfs3必须是nfsuser代理用户
+ ./sbin/hadoop-daemon.sh --script ./bin/hdfs start nfs3
+7.验证 jps
+ 在客户端安装nfs-utils软件
+ mount -t nfs -o vers=3,proto=tcp,nolock,noatime,sync 192.168.1.14:/ 本地目录
+ vers=3(只能使用版本3)
+ proto=tcp(只能使用TCP协议)
+ nolock(不支持NLM)
+ noatime(禁用时间更新)
+ sync(避免存盘写入)
+
+DRBD+heartbeat架构
+
+nfs高可用集群项目
+https://cloud.tencent.com/developer/information/nfs%E9%AB%98%E5%8F%AF%E7%94%A8
+
+#########################################################################
+
+Day07
+
+常用组件Zookeeper
+是什么
+ 是一个开源的分布式应用程序协调服务
+能做什么
+ 用来保证数据在集群间的事务一致性
+应用场景
+ 集群分布式锁、集群统一命名服务、分布式协调服务
+角色与特性
+ Leader：接受所有Follower的提案请求并同一协调发起提案的投票，负责与所有的Follower进行内部数据交换
+ Follower：直接为客户端服务并参与提案的投票，同时与Leader进行数据交换
+ Observer：直接为客户端服务但并不参与提案的投票，同时也与Leader进行数据交换
+角色与选举(具体查看PPT)
+ Leader是通过选举产生，必须得到n/2+1台服务器的投票，所以一般由奇数台服务器组成，
+ 参与投票的角色数量少于一半则集群会停止服务
+zookeeper原理与设计
+ Leader所有写相关操作，Follower读操作，observer负责读操作不参与投票
+ 由于leader所有写操作需得到半数以上服务器投票才可以写，然后通知所有服务器同步写入的数据，所以数据量大会制约其性能,observer解决了其性能，提高可读性且不影响写操作性能
+
+安装配置zookeeper
+1.解压zookeeper压缩包，并移动到/usr/local/zookeeper下
+2.修改配置文件
+  改名mv conf/zoo_{sample.,}cfg
+  server.1=node1:2888:3888	//servier.id不可以重复
+  server.2=node2:2888:3888
+  server.3=node3:2888:3888
+  server.4=mynn01:2888:3888:observer   //observer角色才需要声明
+3.同步文件到所有主机
+  rsync -aSH --delete /usr/local/zookeeper node1:/usr/local/ &
+  ...node2...node3
+  所有主机创建datadir指定目录：/tmp/zookeeper
+4.所有主机创建自己对应的myid文件
+  echo 4 > /tmp/zookeeper/myid
+  ssh node1 'echo 1 > /tmp/zookeeper/myid'
+  ...node2....node3
+5.需所有节点启动服务，进行选举
+  /usr/local/zookeeper/bin/zkServer.sh start   //启动服务，status查看角色状态
+  /usr/local/zookeeper/bin/zkServer.sh stop  //停止服务
+6.Zookeeper管理文档
+ http://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html 
+ 四字命令：socat - TCP:node1:2181
+ 
+Kafka
+是什么
+ -是由LinkedIn开发的一个分布式的消息系统
+ 
+ 
+安装配置
+1.解压kafka压缩包
+2.移动到/usr/local/kafka,并改名
+3.修改配置文件config/server.properties
+ broker.id=5   //id值不可相同
+ zookeeper.connect=node1:2181,node2:2181,node3:2181   //指定zookeeper主机
+ 拷贝/usr/local/kafka到其他主机
+4.启动服务
+ /usr/local/kafka/bin/kafka-server-start.sh -daemon /usr/local/kafka/config/server.properties
+5.验证
+ 创建一个topic(node1)
+  ./bin/kafka-topics.sh --create --partitions 1 --replication-factor 1 --zookeeper localhost:2181 --topic mymsg
+ 生产者,发送消息(node2)
+  ./bin/kafka-console-producer.sh --broker-list localhost:9092 --topic mymsg
+ 消费者，查看消息(node3)
+  ./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic mymsg
+ 
+Hadoop高可用
+NameNode是HDFS的核心配置,管理所有数据,在集群中至关重要
+官方提供了两种高可用方案:
+HDFS+NFS：2台namenode，zookeeper校验，zkf检查集群，nfs(数据存储方式),需配置nfs高可用   
+HDFS+QJM：2台namenode，zookeeper校验，zkf检查集群，journalNode配置高可用
+两台namenode，一主一备，备从JNS同步数据,不需要secondary小密角色了
+
+安装部署HDFS高可用
+架构
+ 192.168.1.10 mynn01  #namenode,resourcemanager
+ 192.168.1.20 mynn02  #namenode,resourcemanager
+ 192.168.1.11 node1   #ZK,datanode,nodemanager,JNS
+ 192.168.1.12 node2   #ZK,datanode,nodemanager,JNS
+ 192.168.1.13 node3   #ZK,datanode,nodemanager,JNS
+
+新建一台namenode主机，192.168.1.20
+将mynn01的/usr/local/hadoop同步到mynn02
+同步所有主机/etc/hosts
+安装java-1.8.0-openjdk-devel
+ssh免密登陆，将mynn01的/root/.ssh目录同步到mynn02，并关闭yes提示
+
+停止所有主机hadoop和kafka
+/usr/local/hadoop/sbin/stop-all.sh
+/usr/local/kafka/bin/kafka-server-stop.sh
+清空所有主机HDFS数据
+rm -f /var/hadoop/*
+
+修改配置文件 
+core-site.xml  
+思路：1.指定默认主机地址，自定义一个组
+      2.配置zk的具体主机和端口
+  <property>
+    <name>fs.defaultFS</name>	//默认dhfs主机
+    <value>hdfs://nsd1809</value>   //将2台namenode放入一个自定义的组中
+  </property>
+  <property>
+    <name>ha.zookeeper.quorum</name>   //配置zookeeper主机
+    <value>node1:2181,node2:2181,node3:2181</value>   //具体主机和端口
+  </property>
+
+hdfs-site.xml  
+思路：1.定义组名，需与core-site.xml中一致
+      2.为两台namenode在组中定义角色
+      3.对应角色的主机
+      4.指定两台主机rpc通信的端口
+      5.指定数据存储在JSN中的路径
+      6.指定JSN日志存储的路径
+      7.定义存储的类
+      8.指定故障处理方式ssh
+      9.指明ssh密钥存储的位置
+      10.开启故障自动切换
+  <property>
+    <name>dfs.nameservices</name>   //定义组名
+    <value>nsd1809</value>
+  </property>
+  <property>
+    <name>dfs.ha.namenodes.nsd1809</name>  //指定集群2个namenode名字
+    <value>nn1,nn2</value> 	//角色名
+  </property>
+  <property>
+    <name>dfs.namenode.http-address.nsd1809.nn1</name>  //对应的主机
+    <value>mynn01:50070</value>
+  </property>
+  <property>
+    <name>dfs.namenode.http-address.nsd1809.nn2</name>
+    <value>mynn02:50070</value>
+  </property>
+  <property>
+    <name>dfs.namenode.rpc-address.nsd1809.nn1</name>  //rpc通信端口
+    <value>mynn01:8020</value>
+  </property>
+  <property>
+    <name>dfs.namenode.rpc-address.nsd1809.nn2</name>
+    <value>mynn02:8020</value>
+  </property>
+  <property>
+    <name>dfs.namenode.shared.edits.dir</name>  //指定namenode元数据存储在JNS中的路径
+    <value>qjournal://node1:8485;node2:8485;node3:8485/nsd1809</value>
+  </property>
+  <property>
+    <name>dfs.journalnode.edits.dir</name>  //定义JNS日志文件存储路径
+    <value>/var/hadoop/journal</value>
+  </property>
+  <property>
+    <name>dfs.client.failover.proxy.provider.nsd1809</name>  //定义namenode存储的类
+    <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProvider</value>
+  </property>
+  <property>
+    <name>dfs.ha.fencing.methods</name>  //定义故障处理方式ssh
+    <value>sshfence</value>
+  </property>
+  <property>
+    <name>dfs.ha.fencing.ssh.private-key-files</name>  //定义私钥的位置
+    <value>/root/.ssh/id_rsa</value>
+  </property>
+  <property>
+    <name>dfs.ha.automatic-failover.enabled</name>  //开启自动故障切换
+    <value>true</value>
+  </property>
+
+yarn-site.xml
+思路：1.启用高可用集群
+      2.声明两个resourcemanager角色
+      3.指明两个角色对应的主机
+      4.开启resourcemanager的配置检测
+      5.指定存储的类
+      6.指定zk的地址
+      7.声明集群的标志
+    <property>
+        <name>yarn.resourcemanager.ha.enabled</name>  //打开高可用集群
+        <value>true</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.ha.rm-ids</name>  //声明两个角色
+        <value>rm1,rm2</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.recovery.enabled</name>  //开启配置检测
+        <value>true</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.store.class</name>  //存储的类
+ <value>org.apache.hadoop.yarn.server.resourcemanager.recovery.ZKRMStateStore</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.zk-address</name>  //zk的地址
+        <value>node1:2181,node2:2181,node3:2181</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.cluster-id</name>  //集群标志，表示一个集群
+        <value>yarn-ha</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.hostname.rm1</name>  //两个角色对应的主机
+        <value>mynn01</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.hostname.rm2</name>
+        <value>mynn02</value>
+    </property>
+    <property>
+---------------------启动服务--------------------------
+初始化启动集群
+ALL: 所有机器
+nodeX： node1    node2    node3
+NN1: mynn01
+NN2: mynn02
+#-----------------------------------------------------#
+ALL:  同步配置到所有集群机器
+NN1: 初始化ZK集群  ./bin/hdfs zkfc -formatZK
+
+nodeX:  启动 journalnode 服务
+        ./sbin/hadoop-daemon.sh start journalnode
+
+NN1: 格式化  ./bin/hdfs  namenode  -format
+NN2: 数据同步到本地 /var/hadoop/dfs
+
+NN1: 初始化 JNS
+        ./bin/hdfs namenode -initializeSharedEdits
+
+nodeX: 停止 journalnode 服务
+        ./sbin/hadoop-daemon.sh stop journalnode
+#-----------------------------------------------------#
+启动集群
+NN1: ./sbin/start-all.sh
+NN2: ./sbin/yarn-daemon.sh start resourcemanager
+
+查看集群状态
+./bin/hdfs haadmin -getServiceState nn1
+./bin/hdfs haadmin -getServiceState nn2
+./bin/yarn rmadmin -getServiceState rm1
+./bin/yarn rmadmin -getServiceState rm2
+
+./bin/hdfs dfsadmin -report
+./bin/yarn  node  -list
+
+访问集群：
+./bin/hadoop  fs -ls  /
+./bin/hadoop  fs -mkdir hdfs://nsd1809/input
+
+验证高可用，关闭 active namenode
+./sbin/hadoop-daemon.sh stop namenode
+./sbin/yarn-daemon.sh stop resourcemanager
+
+恢复节点
+./sbin/hadoop-daemon.sh stop namenode
+./sbin/yarn-daemon.sh stop resourcemanager
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
