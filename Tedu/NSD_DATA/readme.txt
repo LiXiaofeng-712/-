@@ -8,4 +8,4 @@ git clone git://124.207.192.18/nsd1809.git
 git clone git://172.40.53.65/nsd1809.git
 
 更新(必须进入 git 目录)
-git  pull
+git pull
