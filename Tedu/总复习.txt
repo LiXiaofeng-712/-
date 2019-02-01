@@ -65,10 +65,27 @@ TCP三次握手：比如A和B通信，A发送syn=1,B回应ack=1/syn=1，A回应a
 ftp:20/21 ssh:22 telnet:23 smtp:25 dns:53 tftp:69 http:80 https:443 pop:110 imap:143 ntp:123 rpc:111 nfs:1109 mysql:3306
 
 
+标准文件:
+标准输入,文件描述符是0,默认是键盘
+标准输出,文件描述符是1,默认是屏幕终端
+标准错误,文件描述符是2,默认是屏幕终端
 
+输入重定向:
+tr a-z A-Z  #小写转大写,ctrl+d结束
+tr a-z A-Z 0< ~/.bashrc > /tmp/bashrc #将.bashrc文件内容全部转为大写并保存到tmp下
 
+ROT13
+tr a-zA-Z n-za-mN-ZA-M  #加密
+ni hao a
+av unb n
+tr n-za-mN-ZA-M a-zA-Z  #解密
 
-
+设置结束标志<<
+cat << EOF > /etc/yum.repos.d/rhel7.repo
+[rhel7]
+name=rhel7
+baseurl=ftp://192.168.1.254
+EOF
 
 
 
