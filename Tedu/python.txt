@@ -69,16 +69,27 @@ docker run -d -h gitlab --name gitlab -p 443:443 -p 80:80 -p 22:22 --restart alw
 
 启动后直接访问虚拟机IP访问(出现无法连接500/502等会再刷新)
 默认用户root，直接修改密码（不低于8位）
+登陆后创建项目、用户、组等
 
+通过http方式连接远程仓库
+git remote rename origin old-origin	//默认远程仓库origin，重复的话使用此命令改名
+git remote add origin http://192.168.4.1/nsd1809/core_py.git  //连接远程仓库
+git push -u origin --all   //将本地代码推送至远程仓库，-u仓库名，--all全部代码
 
+git remote add	//添加远程仓库
+git remote rename	//重命名远程仓库
+git remote remove	//删除远程仓库
 
-
-
-
-
-
-
-
+使用ssh方式免密钥登陆
+真机生成密钥，将公钥部署到网页用户中
+ssh-keygen -C 邮箱 -t rsa -N '' -f "/root/.ssh/id_rsa" -b 4096
+ssh-agent	//密钥管理工具	
+ssh-add	//添加到管理工具
+如果遇到权限问题，将私钥权限改为600
+删除已连接的远程仓库
+git remote remove origin
+连接远程仓库
+git remote add origin git@192.168.4.1:nsd1809/core_py.git
 
 
 
