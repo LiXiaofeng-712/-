@@ -1,0 +1,87 @@
+ftp://176.121.0.120
+帐号：python
+密码：python
+教学群：552320360
+石博文：shibw@tedu.cn
+
+
+Python1
+Day01
+python版本2/3不兼容
+目前大部分系统默认安装的是python2，大部分已停止更新
+教学环境是python3版本
+
+终端输入python或python3进入python的不同版本
+使用quit()或exit()或ctrl+D退出
+
+python官网：www.python.org
+pycharm激活：
+1.运行/root/bin/crack
+  选择License Server
+  输入网址：http://127.0.0.1:1017
+
+git
+安装与使用
+安装：yum -y install git
+查看版本信息：git --version
+配置用户信息 用户名/邮箱/默认编译器
+git config --global user.name ""
+git config --global user.email ""
+git config --global core.editor vim
+git config --list	//查看更改信息
+查看文件是否更改
+cat  ~/.gitconfig
+
+git分为工作区、暂存区、版本库
+创建仓库
+mkdir devops
+cd devops
+git init
+在工作区创建文件
+cat << eof > hello.py
+> print("Hello World!")
+> eof
+添加文件到暂存区
+git add hello.py(文件名)
+git status 	//查看暂存区的状态
+git status -s 	//只显示暂存区文件的变化
+确认至仓库
+git commit -m "描述信息"
+更改文件并提交到版本库
+1.git add . --> git commit -m "描述信息"
+2.git commit -am "描述信息" 	//只适用于修改文件，新文件不适用
+删除文件
+git ls-files	//查看版本库中的文件
+git rm 文件名
+git commit -m "描述信息"
+
+搭建本地gitlab服务器
+安装docker容器，并下载gitlab_zh.tar镜像文件，导入
+docker load < gitlab_zh.tar 
+修改真迹ssh端口后，启动容器
+docker run -d -h gitlab --name gitlab -p 443:443 -p 80:80 -p 22:22 --restart always -v /srv/gitlab/config:/etc/gitlab -v /srv/gitlab/logs:/var/log/gitlab -v /srv/gitlab/data gitlab_zh:latest 
+-d 后台运行
+-h 设置虚拟机的主机名
+--name 设置容器名
+-p 真机端口:容器端口，映射端口到真机中
+--restart always  出现问题时重新启动服务
+-v 真机路径:容器路径，映射目录到容器中
+
+启动后直接访问虚拟机IP访问(出现无法连接500/502等会再刷新)
+默认用户root，直接修改密码（不低于8位）
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
