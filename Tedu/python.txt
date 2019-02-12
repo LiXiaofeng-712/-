@@ -90,6 +90,230 @@ ssh-add	//添加到管理工具
 git remote remove origin
 连接远程仓库
 git remote add origin git@192.168.4.1:nsd1809/core_py.git
+######################################################################################################
+
+
+Day02
+以.py结尾的是python文件
+1.通过解释器运行文件
+python3 文件
+2.在文件中声明解释器，赋予文件执行权限即可
+书写python文件
+cat << eof > hello.py
+#!/usr/bin/env python3	//自动寻找python3解释器，也可以书写python3绝对路径
+print("hello world!")
+eof
+chmod +x hello.py
+
+python语法结构
+1.缩进
+首行以关键字开始，以冒号结束，之后的每一行都要有4个空格的缩进，直到代码结束
+2.注释/换行
+#注释内容
+\换行，注意换行符必须是最后一个字符
+3.同行多个语句(不推荐使用)
+使用；号
+4.帮助信息
+help(关键字)
+help(print)	//查看输出的帮助信息
+print(value,...,sep=' ',end'\n',file=sys.stdout,flush=False)
+value:任意输出的值
+sep:两个值之间的字符默认是一个空格
+end:最后一个字符，默认换行
+help(input)	//查看输入帮助
+input(prompt=None,\)
+prompt:提示字符串，提示用户输入信息，所有返回值默认是字符类型
+
+变量
+变量名称约定
+  -第一个字符只能是大小写字母或下划线
+  -后续字符只能是大小写字母或下划线
+  -区分大小写
+推荐变量名
+  -变量名全部采用小写字母
+  -常量名采用大写字母
+  -简短，有意义
+  -多个单词间用下划线分隔
+  -变量名用名词，函数名用谓词(动词+名词)
+  -类名采用驼峰形式
+python中变量不需要声明数据类型，变量的值是什么类型变量就是什么类型
+声明变量一定要赋值，否则不能声明变量
+支持增量赋值
+a += 1 相当于 a = a + 1
+不支持a++
+
+运算符
+算术运算符
++ - * / //(整除，舍弃小数位) % **(幂运算)
+整数与浮点数进行运算，结果为浮点数
+比较运算符
+< <= > >= == != <>
+逻辑运算符
+and not or
+and运算只要有一个条件False，结果就为False
+or运算只要有一个条件True，结果就为True
+not运算条件为True结果为False，条件为False结果为True
+1<2 and 2>3 
+############################################################################################
+数据类型
+1.数字
+  -int：有符号整数
+  -bool：布尔值(首字母必须大写)
+    True：1  条件成立，存在
+    False：0  条件不成立，不存在
+  -float：浮点数
+  -complex：复数
+    1+2j
+    2+43J
+python默认以十进制数显示
+数字以0b或0B开头表示2进制
+数字以0o或0O开头表示为8进制
+数字以0x或0X开头表示16进制
+
+2.字符串
+  python中引号之间的字符称为字符串
+  python不区分单双引号，意义相同
+  支持三引号，连续的三个单引或双引，可以包含特殊字符
+  python不区分字符和字符串
+字符串切片
+  使用索引运算符[]和切片运算符[:]可得到子字符串
+  第一个字符的索引是0，最后一个是-1
+  子字符串包含切片中的起始下标，但不包含结束下标
+字符串连接
+  使用+号可以将多个字符串拼接在一起
+  使用*号可以将一个字符串重复多次
+字符串比较大小根据ascii码
+'a' < 'b'
+'ab' < 'ac'
+'abc' < 'ac'
+字符串比较运算时，按顺序从第一位开始比较，相同比下一位，比出结果后停止
+
+列表和元组
+容器 可以存放任意类型的数据
+列表的表示方式[value，value，...],可以为空，表示空列表
+使用in/not in 查看列表中是否有某一元素
+list = [1,2,'a']
+向列表末尾追加内容：list.append(value)
+元组是静态的列表，一旦定义，不能改变
+tuple = (1,2,'b')
+
+字典
+字典是由键-值对构成的，通过键取值，不支持下标操作
+dict = {'tel':13011112222}
+dict['tel']
+
+数据类型比较
+按存储模型分类
+  -标量类型：数值，字符串
+  -容器类型：列表，元组，字典
+按更新模型分类
+  -可变类型：列表，字典
+  -不可变类型：数值，字符串，元组
+按访问模型分类
+  -直接访问：数值
+  -顺序访问：列表，元组，字符串
+  -映射访问：字典
+
+if语句
+语法结构
+if expr:
+    if_suite
+else:
+    else_suite
+判断表达是expr的值非0或布尔值为True，执行if代码，否则执行else代码
+expr可以是单独元素，也可以是条件表达式
+单独元素值转换布尔值为False的：0,0.0,(0+0j),'',[],(),{}
+
+cat << eof > login2.py
+#!/usr/bin/env python3
+user=input('请输入用户名:')
+passwd=input('请输入密码:')
+if user == '' or passwd == '':
+    print('请输入正确的用户和密码！')
+    exit
+elif user == 'bob' and passwd == '123456':
+    print('Login successful')
+else:
+    print('Login inorrect')
+eof
+chmod +x login2.py
+./login2.py
+
+
+cat << eof > grade.py
+#!/usr/bin/env python3
+grade = int(input('请输入成绩：'))
+if grade > 90:
+    print('优秀！')
+elif grade > 80:
+    print('好！')
+elif grade > 70:
+    print('良！')
+elif grade > 60:
+    print('及格！')
+else:
+    print('你要努力了！')
+eof
+chmod +x grade.py
+./grade.py
+
+#剪刀石头布小游戏
+import random	//导入随机模块
+choice = ['剪刀','石头','布']
+win = [['剪刀','布'],['石头','剪刀'],['布','石头']]
+computer = random.choice(choice)
+tmp = '''[0]剪刀
+[1]石头
+[2]布
+请选择(0/1/2)：
+'''
+ind = int(input(tmp))
+player = choice[ind]
+print('computer choice:',computer,'player choice:',player)
+if player == computer:
+    print('平局！')
+elif [player,computer] in win:
+    print('You Win！')
+else:
+    print('You Lose！')
+
+while循环
+循环次数可以预知的情况下，建议采用for循环
+循环次数未知的情况下，建议采用while循环
+num = 2
+print("%d"%num)
+
+打印20以内的偶数
+n = 1
+while n <= 20:
+    if n%2 == 0:
+        print(n)
+    n += 1
+
+练习 要求用户输入用户名，如果用户名不是tom，则一直输入
+方法一：
+uname = input('请输入用户名')
+while uname != 'tom':
+    uname = input('请输入用户名')
+方法二：
+while 1:
+    uname = input('请输入用户名')
+    if uname == 'tom':
+        break	//跳出当前循环，执行下条语句
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
