@@ -224,6 +224,9 @@ else:
 expr可以是单独元素，也可以是条件表达式
 单独元素值转换布尔值为False的：0,0.0,(0+0j),'',[],(),{}
 
+三元运算符
+x if expr else y	//如果expr条件成立，输出x，否则输出y
+
 cat << eof > login2.py
 #!/usr/bin/env python3
 user=input('请输入用户名:')
@@ -301,22 +304,176 @@ while 1:
     if uname == 'tom':
         break	//跳出当前循环，执行下条语句
 
+break:跳出循环，执行下条语句
+continue：跳过本次循环，进入下次循环
+else：python中特有的，在循环结束后会执行else语句，break会跳过此处代码
+while 1:
+    代码
+else:
+    代码
+################################################################################################
+
+Day03
+for循环语法结构
+for 变量 in 可迭代对象:
+    代码
+for循环将可迭代对象中的值按顺序遍历给变量执行代码，直到结束，若后面有else语句，结束后会执行else中的代码
+for循环中的变量结束后还是会存在的，后续使用尽量不要重名
+注意：若可迭代对象为空，则不会创建变量
+range函数：提供循环条件，range(start,end,step=1)，包含开始不包含结束
+
+#九九乘法表
+#range函数，顾头不顾尾，结尾+1
+for i in range(1,10):
+    for j in range(1,i+1):
+        print('%sx%s=%s\t'%(j,i,j*i),end=' ')
+        #print(str(j)+'x'+str(i)+'='+str(j*i)+'\t',end=' ')
+        #print('{0}x{1}={2}\t'.format(j,i,(i*j)),end=' ')
+    print()
+
+列表解析（列表推倒式）
+语法
+[expr for 变量 in 可迭代对象]或	//expr可以和变量搭配使用
+[expr for 变量 in 可迭代对象 if 条件表达式]
+alist = [2+i for i in range(101) if i%2 == 0]
+
+文件对象
+文件打开的方法
+open()方法
+open(file,mode,buffering)打开指定文件
+file：文件路径，mode：访问模式（默认以r模式访问），buffering：缓存（默认-1，使用系统默认缓存）
+文件对象访问模式：
+r：读 （文件不存在会报错）
+w：写 （文件不存在会创建，文件存在会清空文件）
+a：追加 （必要时创建文件）
+
+r+：以读写模式打开（操作同r）
+w+：以读写模式打开（操作同w）
+a+：以读写模式打开（操作同a）
+
+rb/wb/ab：以二进制模式打开
+
+文件输入
+read()读取文件内容
+fobj = open('test.py','r')
+data = fobj.read()	//不写默认读取全部内容，可以设置读取字节数read(5)
+print(data)
+当读取全部内容后，指针会指向文件末尾，再次读取文件则读不到任何数据
+fobj.close()	//关闭文件对象
+
+readline()读取文件光标开始到下一个换行之间的所有内容，即一行；也可以指定读取指定字节readline(5)
+readlines()读取剩余所有行并把他们作为一个字符串列表返回
+
+文件迭代
+fobj = open('test.py')
+for i in fobj:
+    print(i)	//一行一行迭代
+
+文件输出
+write()
+fobj.write('hello world\n')	//向文件写入内容，不会自动添加结束标志，需手工输入
+fobj.writelines(['a\n','b\n'])	//支持字符串列表作为参数写入，也要手工输入结束符
+fobj.flush()	//立即将缓存中的数据同步
+
+操作文件
+pycharm批量注释快捷键ctrl+/
+with语句
+with open('test.py') as f(别名):
+    对文件的操作代码
+print(f.closed)	//检测文件是否关闭，关闭返回True，否则False
+
+seek(offset[,whence])	//移动文件指针到不同的位置
+f.seek(0,0)	//将指针移动到开头
+offset是相对于某个位置的偏移量
+whence的值，0表示文件开头，1表示当前位置，2表示文件结尾
+tell()	//返回当前文件指针的位置
+
+标准文件（了解即可）
+标准输入：一般是键盘，使用sys.stdin
+标准输出：一般是显示器缓冲输出，使用sys.stdout
+标准错误：一般是显示器的非缓冲输出，使用sys.stderr
+使用需导入sys模块
+sys.stdout.write('hello')	//等同于print('hello')
+sys.stdin.readline()	//等同于input()
+
+模拟cp操作
+#打开/bin/ls 作为源文件
+f1 = open('/bin/ls','rb')
+#打开/root/ls 作为目标文件
+f2 = open('/root/ll','wb')
+#重复的从源文件读取内容到目标文件，建议一点一点读
+while True:
+    data = f1.read(4096)	//每次读取4096字节
+    #if data == '':
+    if not data:	//判断数据为空，退出循环
+        break
+    f2.write(data)
+#关闭文件
+f1.close()
+f2.close()
 
 
+函数
+简化程序，点少代码的重复，通常代表某一种功能
+函数语法
+def func_name(arguments):
+    '文档字符串'	//描述函数的功能及使用方式
+    代码
+def say():	//定义函数
+    print('hello')
+say()		//调用函数
+#拷贝函数
+def cp(src,dst):
+    '''cp(src,dst)
+    src 源文件路径
+    dst 目标文件路径'''
+    f1 = open(src,'rb')
+    f2 = open(dst,'wb')
+    while True:
+        data = f1.read(4096)
+        if not data:
+            break
+        f2.write(data)
+    f1.close()
+    f2.close()
 
+函数参数
+#在定义函数时的参数称为形参
+def mysum(num1,num2):	
+    return num1 + num2	//return指定函数返回结果
+#调用函数，传递的参数称为实参
+print(mysum(5,6))	
 
+位置参数
+需要使用sys模块的argv列表接收
+import sys
+print(sys.argv) #位置参数列表,将所有位置参数保存在列表中
+print(sys.argv[1])	//打印列表中下标为1的参数
 
+默认参数
+def mysum(num=10):	//定义默认参数num=10
+    print('*'*num)
+mysum()	//没有实参时，使用默认参数10
 
-
-
-
-
-
-
-
-
-
-
+#使用python书写拷贝功能函数
+#!/usr/bin/env python3
+import sys
+def cp(src,dst):
+    '''cp(src,dst)
+    src 源文件路径
+    dst 目标文件路径'''
+    f1 = open(src,'rb')
+    f2 = open(dst,'wb')
+    while True:
+        data = f1.read(4096)
+        if not data:
+            break
+        f2.write(data)
+    f1.close()
+    f2.close()
+cp(sys.argv[1],sys.argv[2])
+#需要在终端运行
+cp src dst
 
 
 
