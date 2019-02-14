@@ -311,6 +311,38 @@ while 1:
     代码
 else:
     代码
+
+总结：
+语法结构
+缩进：严格按4个空格缩进
+注释：以#开头表示注释
+
+变量
+规则：开头由字母、下划线组成，后续由字母、下划线、数字组成
+
+运算符
+算术运算：+ - * / // % **
+比较运算：> >= < <= == != <>
+逻辑运算：and or not
+
+数据类型
+数字：int,bool,float,complex
+字符串：str
+列表：list
+元组：tuple
+字典：dict
+
+判断语句
+if 条件表达式:
+    代码
+elif 条件表达式:
+    代码
+else:
+    代码
+
+循环
+while 条件表达式:
+    代码
 ################################################################################################
 
 Day03
@@ -377,7 +409,7 @@ fobj.flush()	//立即将缓存中的数据同步
 
 操作文件
 pycharm批量注释快捷键ctrl+/
-with语句
+with语句：简化代码
 with open('test.py') as f(别名):
     对文件的操作代码
 print(f.closed)	//检测文件是否关闭，关闭返回True，否则False
@@ -411,6 +443,7 @@ while True:
 #关闭文件
 f1.close()
 f2.close()
+f1.closed	//检测文件是否关闭
 
 
 函数
@@ -474,6 +507,373 @@ def cp(src,dst):
 cp(sys.argv[1],sys.argv[2])
 #需要在终端运行
 cp src dst
+
+总结：
+循环语句
+while：循环次数未知
+for：循环次数已知
+
+列表解析
+[expr for i in 迭代对象 if 条件表达式]
+
+文件操作
+open()
+r,w,a,b
+
+读取文件内容
+read()/readline()/readlines()：前两个都可以接受字节数
+
+向文件写入
+write()/writelines()
+
+操作文件内容
+seek()：偏移量，位置（0开头，1当前，2结尾）  //移动指针，一般在二进制文件中移动
+tell()：获取当前光标位置
+with open() as 别名：简化代码
+f.closed	//检测文件是否关闭
+
+函数
+自定义函数：将一些重复的代码放入一个函数中，简化代码，实现某一功能
+文档字符串：描述函数的使用和功能
+
+参数
+形参和实参
+def mysum(a,b):
+    return a + b
+mysum(10,20)
+
+位置参数
+import sys
+sys.argv
+
+默认参数
+def p_star(num=20)
+    print('*'*num)
+p_star()
+p_star(50)
+###########################################################################################
+
+模块
+模块文件名字是去掉.py后的名字
+导入模块：import 模块名
+导入模块中的某一个功能：from 模块名 import 功能名字(使用时不用带模块名)
+模块加载(load)：一个模块只能被加载一次
+
+模块导入的特性
+模块具有一个__name__特殊属性
+当模块文件直接被执行时，__name__的值为__main__
+当模块被另一个文件导入时，__name__的值就是该模块的名字
+
+模块中的变量称为：属性
+模块中的函数称为：方法
+
+内置模块 python定义好的，可以直接导入使用
+标准库模块 python标准库中的模块，可直接导入使用
+第三方模块 需要自己下载安装才能使用
+自定义模块 自己写的模块
+
+string模块
+string.ascii_letters:所有大小写字母
+string.digits:所有数字
+
+生成随机密码
+from random import choice
+from string import ascii_letters
+from string import digits
+
+all_choice = ascii_letters + digits + '_'
+
+def pas(num=8):
+    result = ''
+    for i in range(num):
+        tmp = choice(all_choice)
+        result += tmp
+    return result
+
+if __name__ == '__main__':
+    print(pas())
+################################################################################################
+
+Day04
+shell相关模块：shutil
+复制
+#拷贝文件对象
+with open('/etc/passwd','rb') as src_file:
+    with open('/tmp/mima','wb') as dst_file:
+        shutil.copyfileobj(src_file,dst_file)
+#拷贝文件,只能拷贝文件
+shutil.copyfile('/etc/passwd','/tmp/mima2')
+#拷贝文件到文件或目录下，同时复制权限
+shutil.copy('/etc/shadow','/tmp')
+#与copy相同，但会尝试保留所有文件元数据
+shutil.copy2()
+
+移动
+#递归地将文件或目录移动到另一个位置，并返回目标
+shutil.move()
+
+目录操作
+#复制目录,如果目标目录存在会报错
+shutil.copytree()
+#删除目录
+shutil.rmtree()
+
+权限管理
+#只复制权限
+shutil.copymode(src,dst)
+#复制元数据
+shutil.copystat(src,dst)
+更改给定路径的所有者或组
+shutil.chown(path,user='',group='')
+
+语法风格
+变量赋值
+x=y=1
+x,y=1,2
+a=10,b=20
+a,b=b,a	//交换a，b的值
+
+元组的()可以省略，逗号不可以省略
+（1）不是元组
+1，：是元组
+
+合法表示符：主要针对起名（第一个必须时字母或下划线，剩下的可以时字母或下划线或数字，大小写敏感）
+查看python中所有关键字
+import keyword
+print(keyword.kwlist)	//关键字列表
+print(keyword.iskeyword('关键字'))	//检测是否为关键字
+
+内建：内部已经写好的东西，有一些保留字如：True、False、None
+
+模块结构及布局
+#!/usr/bin/env python3		#起始行，声明解释器
+"this is a test module"		#模块文档字符串
+import sys				#导入模块
+import os
+debug = True			#定义全局变量
+class FooClass(object):		#类定义
+    'Foo class'
+    pass
+def test():				#函数定义
+    "test function"
+    foo = FooClass()
+if __name__ == '__main__':	#程序主体
+    test()
+
+import os 
+os.path.exists()	#判断文件是否存在，存在返回True
+
+**************小练习*************
+#!/usr/bin/env python3
+#coding:utf-8
+'''
+编写一个程序，要求用户输入文件名
+如果文件已存在，要求用户重新输入
+提示用户输入数据，每行数据先写到列表中
+将列表数据写入到用户输入的文件名中
+'''
+import os
+#获取用户输入的文件名，并判断是否存在
+def get_fname():
+    while True:
+        fname = input('Please input filename:')
+        if not os.path.exists(fname):
+            break
+        print('file is exists! Please try again!')
+    return fname
+#获取用户输入的数据，并保存到列表
+def get_data():
+    print('请输入数据，输入end结束！')
+    content = []
+    while True:
+        data = input('>>>')
+        if data == 'end':
+            break
+        #content.append(data+'\n')
+        content.append(data)
+    return content
+#将获取的数据写入文件中
+def write_file(fname,data):
+    with open(fname,'w') as f:
+        f.writelines(data)
+#习惯性在当前脚本中测试代码
+if __name__ == '__main__':
+    fname = get_fname()
+    #data = get_data()
+    data = [line+'\n' for line in get_data()]
+    print(fname)
+    print(data)
+    write_file(fname,data)
+
+
+序列操作符
+seq[ind]		#获取下标元素
+seq[ind1:ind2]	#截取ind1和ind2之间数
+seq * expr		#重复expr次
+seq1 + seq2		#连接序列seq1和seq2
+obj in seq		#判断obj是否在seq中
+obj not in seq	#判断obj是否不在seq中
+
+内建函数
+list(iter)	#把可迭代对象转换为列表
+str(obj)	#将obj转换为字符串
+tuple(iter)	#把可迭代对象转换为元组
+len(seq)	#返回seq的长度
+max(seq)	#求seq中最大值
+min(seq)	#求seq中最小值
+enumerate	#枚举，返回序列索引和索引位置对应的值,索引从0开始
+sorted(iter) #接受一个迭代器,返回一个有序的列表,升序排列
+reversed(seq) #接受一个序列作为参数,返回一个逆序排列的迭代器
+
+字符串操作符
+比较操作符:按ascii码进行比较
+切片操作符:[],[:],[::]	[::-1]表示从后往前
+成员关系操作符:in,not in
+
+#!/usr/bin/env python3
+'''
+程序接受用户输入
+判断用户输入的标识符是否合法
+用户输入的标识符不能使用关键字
+有不合法字符，需要指明第几个字符不合法
+'''
+import string
+import keyword
+
+#定义首字符和其余字符
+first_char = string.ascii_letters+'_'
+other_char = string.ascii_letters+string.digits+'_'
+
+#检查用户输入字符是否合法
+def check_id(idt):
+    #判断首字符是否合法
+    if idt[0] not in first_char:
+        return '1st invalid'
+    #判断其余字符是否合法
+    for ind,val in enumerate(idt[1:]):
+        if val not in other_char:
+            return 'char in position %s invalid' %(ind+2)
+    #判断是否为关键字
+    if keyword.iskeyword(idt):
+        return 'is keyword'
+    #以上都不满足,则为合法字符
+    return '%s is vaild' %idt
+
+#测试
+if __name__ == '__main__':
+    print(check_id('8hello'))
+    print(check_id('hell+o'))
+    print(check_id('hello'))
+    print(check_id('True'))
+
+
+格式花操作符
+%c 字符占位符
+%s 字符串占位符
+%d/%i 十进制数占位符
+%o 八进制数占位符
+%e/%E 科学计数法
+%f/%F 浮点数占位符
+print('%5.2f'%(2.5))	//宽度为5,保留2位小数
+* 定义宽度或者小数点精度 %5.2f
+- 左对齐
++ 右对齐
+<sp> 正数前面显示空格
+# 
+0 位数不够使用0填充,不用空格
+
+format函数
+print('{1},{0}'.format('bob',23))	//按位置传参,{0}表示bob,{1}表示23
+{:[填充字符,默认空格][对齐方式<^>][宽度]}
+print('{1:^8},{0:>10}')	//填充<左对齐,^居中,>右对齐
+print('{name},{age}'.format('name':'bob','age':23))  //使用关键字参数
+print('{0[0]},{0[1]}'.format(['bob',23]))   //使用索引
+
+原始字符串操作符
+alist = r'C:\test\nsd1809' //所有字符都不会转义,原样输出
+
+import subprocess	//可以使用shell命令的模块
+subprocess.call('cmd',shell=True)
+
+创建随机密码的脚本randpass.py
+from random import choice
+from string import ascii_letters
+from string import digits
+
+all_choice = ascii_letters + digits + '_'
+
+def pas(num=8):
+    result = ''
+    for i in range(num):
+        tmp = choice(all_choice)
+        result += tmp
+    return result
+
+if __name__ == '__main__':
+    print(pas())
+
+创建用户脚本
+  编写一个程序，实现创建用户的功能
+  提示用户输入用户名
+  随机生成8位密码
+  创建用户并设置密码
+  将用户相关信息写入指定文件
+
+import subprocess
+import randpass	//调用随机密码的模块
+
+def create_user(user,pwd,file):
+    subprocess.call('useradd %s' %user,shell=True)
+    subprocess.call(
+        'echo %s | passwd --stdin %s' %(pwd,user),
+        shell=True
+    )
+    with open(file,'a') as f:
+        f.write('user:%s\npwd:%s\n' %(user,pwd))
+
+if __name__ == '__main__':
+    user = 'nsd'
+    pwd = randpass.pas(16)
+    file = '/tmp/a.txt'
+    create_user(user,pwd,file)
+
+
+字符串内建函数
+调用方式 字符串.函数
+string.capitalize()	//字符串的第一个字符大写
+string.title()	//单词首字母大写
+
+string.center(width,'*')	//居中字符串,指定长度为width,默认空格填充,也可手工修改填充字符
+string.ljust(width,'*')  //指定长度为width,用*填充,并左对齐
+string.rjust(width,'*')  //指定长度为width,用*填充,并右对齐
+
+string.count(str,beg=0,end=len(string))  //统计str出现的次数,可以设定范围
+
+string.endswith(obj,beg=0,end=len(string))  //判断是否以obj结束,是返回True,否则False
+string.startwith(同上)	//判断开始字符串,返回True或False
+
+string.islower()	//判断是否全为小写,是返回True,否则False
+string.isupper()	//判断是否全为大写,是返回True,否则False
+
+string.isdigit()	//判断是否为数字
+string.isalpha()	//判断是否为字母
+string.isalnum()	//判断是否为数字或字母
+
+string.strip()	//删除string字符串两端的空白
+string.lstrip()	//删除左边空白字符
+string.rstrip()	//删除右边空白字符
+
+string.upper()	//将小写字母转换为大写字母
+string.lower()	//将大写字母转换为小写字母
+
+string.split('str',num=string.count(str))  //分隔字符串,以str分隔
+print(string.split())
+print('*'.join(list)) 	//以*将列表中字符串拼接起来
+
+
+
+
+
 
 
 
