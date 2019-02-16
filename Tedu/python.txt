@@ -786,7 +786,7 @@ format函数
 print('{1},{0}'.format('bob',23))	//按位置传参,{0}表示bob,{1}表示23
 {:[填充字符,默认空格][对齐方式<^>][宽度]}
 print('{1:^8},{0:>10}')	//填充<左对齐,^居中,>右对齐
-print('{name},{age}'.format('name':'bob','age':23))  //使用关键字参数
+print('{0[name]},{1[age]}'.format({'name':'bob'},{'age':24}))  //使用关键字参数
 print('{0[0]},{0[1]}'.format(['bob',23]))   //使用索引
 
 原始字符串操作符
@@ -869,6 +869,261 @@ string.lower()	//将大写字母转换为小写字母
 string.split('str',num=string.count(str))  //分隔字符串,以str分隔
 print(string.split())
 print('*'.join(list)) 	//以*将列表中字符串拼接起来
+
+列表
+通过下标只能更新值，不能添加新值
+list.append(5)	#向列表末尾添加一个值5
+list.index(60)	#获取列表中60的下标值
+list.insert(index,value)	#向列表中指定的位置插入值
+list.count(60)	#统计60的出现次数
+list.remove(60)	#删除第一个出现的值60
+list.pop(2)		#弹出下标为2的值
+list.reverse()	#翻转
+list.sort()		#升序排序
+list.sor(reverser=True)	#直接降序排列
+list.extend(seq)	#把序列seq内容添加到列表中
+
+元组
+静态的列表，元素组本身不可增删改，但元素中的列表、字典等元素仍可以改变
+tuple.count()	#统计出现次数
+tuple.index()	#查询值的下标
+
+编程思路：
+1、思考
+程序运行方式：交互？非交互？
+如果交互，如何提示用户输入，用户如何回答，直到结束
+2、分析程序有哪些功能，把这些功能写成函数，写出程序的大体框架
+3、逐一编写每个函数
+4、测试代码，修补
+
+#coding:utf-8
+#列表模拟栈结构
+#栈：先进后出的结构,后出先进结构
+# import os
+import subprocess
+
+stack = []
+#压栈功能
+def push_it():
+    subprocess.call('clear')
+    data = input('data to push:').strip()
+    if data:
+        stack.append(data)
+        print('\033[31;1msucessful!\033[0m')
+
+#出栈功能
+def pop_it():
+    subprocess.call('clear')
+    if stack:
+        print('from stack popped \033[31;1m%s\033[0m' %stack.pop())
+    else:
+        print('\033[31;1mEmpty stack!\033[0m')
+
+#查询功能
+def view_it():
+    subprocess.call('clear')
+    print('\033[32;1m%s\033[0m' %stack)
+
+#菜单功能
+def show_menu():
+    cmds = {'0':push_it,'1':pop_it,'2':view_it}
+    alist = ['0','1','2','3']
+    prompt = '''[0] push
+[1] pop
+[2] view
+[3] quit
+Please input your choice (0/1/2/3):'''
+    while True:
+        choice = input(prompt).strip()
+        if choice not in alist:
+            subprocess.call('clear')
+            print('Invalid choice.Try again!')
+            continue
+        if choice == '3':
+            break
+
+        cmds[choice]() 	#cmds['0']()=>push_it()
+        # if choice == '0':
+        #     push_it()
+        # elif choice == '1':
+        #     pop_it()
+        # else:
+        #     view_it()
+
+
+if __name__ == '__main__':
+    show_menu()
+
+########################################################################################################
+学习方法；
+1.清楚难点、重点。先掌握重点知识
+2.记主要内容，其他的要了解功能
+3.编程思路
+4.代码量
+
+git pull https://github.com/MrZhangzhg/nsd_2018.git
+
+字典：容器、可变、映射
+1、创建字典的方式
+adict = {'name':'bob','age':24}
+bdict = dict(['ab',['qq','62121878'],('phone','13828456471')])
+cdict = {}.fromkeys(('ab','ls','cd'),8)
+2、访问字典
+只能访问字典的键key，得到值，不能直接访问值
+print(len(adict))
+for key in adict:
+    print('%s:%s' %(key,adict[key]))
+print('%(name)s is %(age)s year old' %adict)
+3、更新字典
+字典的key不能重复
+
+字典的相关函数
+不可变的才可以作为key，可变的不能作为key
+dict.len()		#返回字典长度
+dict.hash()		#判断是否可以作为字典的键
+dict.keys()		#取出字典的key
+dict.values()	#取出字典的value
+dict.items()	#取出字典的键和值
+dict.get(key,'指定返回值')		#重点，通过键寻找值，找到返回值，没找到默认返回None，也可以指定返回值
+adict = {'name':'bob','age':24}
+print(adict.get('qq'))	==>None
+print(adict.get('qq','not found'))	==>not found
+print(adict.get('name','not found'))	==>bob
+
+dict.pop()		#弹出指定key，value
+dict.popitem()	#随机弹出一对键值
+bdict = adict	#两个字典指向同一个地址空间
+id(adict)		#查看字典在内存中的地址
+
+dict.copy()		#重新拷贝一份内容
+cdict = adict.copy()	#内容相同，空间地址不同，复制了一份
+
+dict.update(dict)	#合并其他字典
+
+练习一：模拟用户登陆信息系统
+支持新用户注册，新用户名和密码注册到字典中
+支持老用户登陆，用户名和密码正确提示登陆成功
+主程序通过循环询问进行何种操作，根据用户的选择，执行注册或是登陆操作
+#coding:utf-8
+import getpass
+import subprocess
+user = {}
+
+def register():
+    subprocess.call('clear')
+    username = input('请输入用户名：')
+    passwd = getpass.getpass('请输入密码：')
+    if username in user:
+        print('\033[31;1m用户%s以存在，注册失败！\033[0m' %username)
+    else:
+        user[username] = passwd
+
+def login():
+    subprocess.call('clear')
+    username = input('请输入用户名：')
+    passwd = getpass.getpass('请输入密码：')
+    # if username in user and passwd == user[username]:
+    if user.get(username) == passwd:
+        print('\033[32;1m登陆成功！\033[0m')
+    else:
+        print('\033[31;1m登陆失败!\033[0m')
+
+def show_menu():
+    cmds = {'0':register,'1':login}
+    prompt = '''[0]注册
+[1]登陆
+[2]退出 
+请选择：'''
+    while True:
+        choice = input(prompt).strip()
+        if choice not in ['0','1','2']:
+            print('无效选择，请重试！')
+            continue
+        if choice == '2':
+            break
+        cmds[choice]()
+
+if __name__ == '__main__':
+    show_menu()
+
+cd - 	//切回上次目录
+空白字符：空格、\n回车、\t制表符、\r回车不换行、\v\f
+
+练习二：编写unix2dos的程序
+#coding:utf-8
+'''
+Windows文本文件的行结束标志是\r\n
+类unix文本文件的行结束标志是\n
+编写程序，将unix文本文件格式转换为windows文本文件的格式
+'''
+
+import sys
+
+def unxin2doc(fname):
+    dst_fname = fname + '.txt'
+    with open(fname) as src_fobj:
+        with open(dst_fname,'w') as dst_fobj:
+            for line in src_fobj:
+                line = line.rstrip('\n\r ') + '\r\n'
+                dst_fobj.write(line)
+
+
+if __name__ == '__main__':
+    unxin2doc(sys.argv[1])
+
+
+练习三：编写类进度条程序
+在屏幕上打印20个#号
+符号@从20个#号穿过
+当@符号到达尾部，再从头开始
+#coding:utf-8
+
+import time
+
+counter = 19
+n = 0
+
+print('*' * counter,end='')
+while True:
+    print('\r%s@%s' %('*' * n,'*' * (counter - n)),end='')
+    n += 1
+    time.sleep(0.3)
+    if n == counter:
+        n = 0
+
+集合：由不同的、不可变元素构成一个集合，它是无序的
+集合类似一个没有值的字典，只有键
+可变的集合：set
+不可变的集合：frozenset
+aset = set('abc')
+bset = set('cde')
+aset | bset 	#并集
+aset & bset		#交集
+aset - bset		#补差，aset中有bset中没有的
+aset.add('new')	#添加new到集合，add是将new这个整体添加，可变的类型不可添加
+aset.update()	#将字符串、列表等拆分成单个加入到集合中
+bset.issubset(aset)  #判断bset是否为aset的子集
+aset.issuperset(bset)  #判断aset是否为bset的超集
+aset.union(bset)	# aset | bset
+aset.intersection(bset)  # aset & bset 
+aset.difference(bset) 	# aset - bset
+
+通过集合可以去重
+import random
+alist = [random.randint(1,20) for i in range(20)]	
+aset = set(alist)	#将列表转换为集合
+blist = list(aset)	#将集合转换为列表
+
+
+
+
+
+
+
+
+
+
+
 
 
 
