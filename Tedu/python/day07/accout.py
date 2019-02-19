@@ -14,13 +14,7 @@ def init_data(fname):
 
 def save(fname):
     while True:
-        try:
-            amount = int(input('金额：'))
-        except (KeyboardInterrupt,EOFError):
-            break
-        except ValueError:
-            print('输入有误，请重新输入！')
-            continue
+    amount = int(input('金额：'))
     comment = input('备注：').strip()
     with open(fname,'rb') as fobj:
         record_list = pickle.load(fobj)

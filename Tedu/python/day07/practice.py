@@ -8,7 +8,7 @@
 # x = y = 3
 # print(x + y)
 
-from random import choice as c
+from random import randint as c
 
 def sort(seq):
     if len(seq) < 2:
