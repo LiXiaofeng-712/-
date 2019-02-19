@@ -955,6 +955,9 @@ if __name__ == '__main__':
     show_menu()
 
 ########################################################################################################
+
+python2
+Day01
 学习方法；
 1.清楚难点、重点。先掌握重点知识
 2.记主要内容，其他的要了解功能
@@ -976,6 +979,7 @@ for key in adict:
 print('%(name)s is %(age)s year old' %adict)
 3、更新字典
 字典的key不能重复
+通过key更新字典，有则更新，没有添加
 
 字典的相关函数
 不可变的才可以作为key，可变的不能作为key
@@ -990,7 +994,7 @@ print(adict.get('qq'))	==>None
 print(adict.get('qq','not found'))	==>not found
 print(adict.get('name','not found'))	==>bob
 
-dict.pop()		#弹出指定key，value
+dict.pop(key)		#弹出指定key，value
 dict.popitem()	#随机弹出一对键值
 bdict = adict	#两个字典指向同一个地址空间
 id(adict)		#查看字典在内存中的地址
@@ -999,6 +1003,8 @@ dict.copy()		#重新拷贝一份内容
 cdict = adict.copy()	#内容相同，空间地址不同，复制了一份
 
 dict.update(dict)	#合并其他字典
+dict.clear()	#清空字典
+del dict[key]	#删除字典中的元素，也可以删除整个字典
 
 练习一：模拟用户登陆信息系统
 支持新用户注册，新用户名和密码注册到字典中
@@ -1114,21 +1120,470 @@ alist = [random.randint(1,20) for i in range(20)]
 aset = set(alist)	#将列表转换为集合
 blist = list(aset)	#将集合转换为列表
 
+时间表示方式：重要
+import time
+1、时间戳：某一时刻距离1970年1月1日0点的妙数，time.time()查看到目前为止的秒数
+2、UTC：世界协调时间。把全球分为24个时区，以格林威治为分隔点，中国utc+8，time.ctime()查看当前时间
+3、9元组：time.localtime()
+>>>t = time.localtime()
+>>>t.tm_year	#年份
+>>>t.tm_wday	#周几，0-6
+
+time模块常用方法：
+time.time()	#返回当前时间的时间戳
+time.ctime()	#返回当前时间的UTC形式
+time.localtime()	#返回当前时间的9元组
+time.sleep(3)	#休眠3秒
+time.strftime('%F')	#显示年月日，可以打印以下所有属性
+
+%a	Locale的缩写工作日名称。	
+%A	Locale的整个工作日名称。	
+%b	语言环境的缩写月份名称。	
+%B	Locale的完整月份名称。	
+%c	语言环境的适当日期和时间表示。	
+%d	一个十进制数字[01,31]。	
+%H	小时（24小时制），十进制数[00,23]。	
+%I	小时（12小时制）十进制数[01,12]。	
+%j	一年中的十进制数[001,366]。	
+%m	月为十进制数[01,12]。	
+%M	以十进制数分钟[00,59]。	
+%p	Locale相当于AM或PM。	
+%S	秒为十进制数[00,61]。
+%U	年的星期数（星期日为星期的第一天）为十进制数[00,53]。在第一个星期日之前的新的一年的所有天被认为是在第0周。	
+%w	工作日为十进制数[0（星期日），6]。	
+%W	年的星期数（星期一作为星期的第一天）作为十进制数[00,53]。在第一个星期一之前的新的一年中的所有天被认为是在第0周。	（3）
+%x	语言环境的适当日期表示。	
+%X	语言环境的适当时间表示。	
+%y	年，无世纪作为十进制数[00,99]。	
+%Y	年份以世纪为十进制数。	
+%z	指示与+ HHMM或-HHMM形式的UTC / GMT的正或负时差的时区偏移，其中H表示十进制小时数字，M表示十进制分数字[-23：59，+23：59]。	
+%Z	时区名称（如果没有时区，则不包含字符）。	
+%%	字面值'%'字符。
+
+datetime模块
+from datetime import datetime
+t = datetime.now()	#年月日时分妙毫秒
+t.year
+t.month
+t.day
+t.hour
+t.minute
+t.second
+t.microsecond	#毫秒
+t1 = datetime(2018,10,1,...)
+t > t1	#比较时间
+
+时间计算
+from datetime import timedelta	
+days = timedelta(days=50,hour=5,...)
+t - days	#50天以前的时间
+t + days	#50天以后的时间
+https://yiyibooks.cn ==> python352中文官方文档翻译 ==> 库参考中
+
+异常处理
+将异常自行处理，不要让系统崩溃，使用try-except语句
+#coding:utf-8
+try:
+    num = int(input('数字：'))
+    result = 100 / num
+    
+except (ValueError,ZeroDivisionError):	#多个条件用(，)间隔
+    print('无效输入！')
+# except ZeroDivisionError:
+#     print('无效输入')
+except (EOFError,KeyboardInterrupt):
+    print('\n手动退出')
+    exit()
+# except KeyboardInterrupt:
+#     print('\n退出')
+#     exit()
+else:		#不发生异常才执行
+    print(result)	
+finally:	#不管异常发不发生都会执行
+    print('Done')
+
+主动触发异常
+1、使用raise触发异常
+def set_age(name,age):
+    if not 0 < age < 120:
+        raise ValueError('年龄超过范围')
+    print('%s is %s years old' %(name,age))
+２、使用assert断言异常
+def set_age1(name,age):
+    assert 0 < age < 120,'年龄超过范围'
+    print('%s is %s years old' %(name,age))
+常用组合try-except和try-finally
+
+os模块，访问文件系统
+os.getcwd()		#pwd
+os.mkdir('/tmp/mydemo')	#mkdir /tmp/mydemo
+os.listdir('/tmp/mydemo')	#ls /tmp/mydemo
+os.chdir('/tmp/mydemo')		#cd /tmp/mydemo
+os.mknod('abc.txt')		#touch abc.txt
+os.chmod('abc.txt',0o644)	#chmod 644 abc.txt，linux权限是8进制数，o表示8进制数
+os.symlink('/etc/hosts','zj')	#ln -s /etc/hosts zj，软连接
+os.unlink('zj')		#unlink zj，删除快捷方式
+os.remove('zj')		#rm zj
+os.path.isfile('/etc/hosts')	#判断是否是文件
+os.path.isdir('/etc/hosts')	#判断是否是目录
+os.path.islink('/etc/grub2.cfg')	#判断是否是软连接
+os.path.exists('/etc')	#判断是否存在
+os.path.split('/etc/sysconfig/network-scripts/ifcfg-eth0') #切割路径
+('/etc/sysconfig/network-scripts', 'ifcfg-eth0')
+os.path.join('/etc/sysconfig/network-scripts', 'ifcfg-eth0')	#拼接路径
+os.path.basename('/etc/sysconfig/network-scripts/ifcfg-eth0')	#获取最后文档名
+os.path.dirname('/etc/sysconfig/network-scripts/ifcfg-eth0')	#获取目录名
+
+pickle模块
+常规文件写操作，只能把字符串对象写入。如果希望写入任意类型数据，取出时不变，使用pickle模块
+pickle是个存储器，可以把任意类型的数据写到文件中，还能再无损地取出来。
+>>> import pickle
+>>> shoplist = ['egg', 'banana', 'apple', 'brush']
+>>> f = open('/tmp/shop.data', 'wb')
+>>> pickle.dump(shoplist, f)	#将列表写入文件
+
+>>> f = open('/tmp/shop.data', 'rb')
+>>> alist = pickle.load(f)	#读取文件内容
+>>> type(alist)
+<class 'list'>
+>>> alist
+['egg', 'banana', 'apple', 'brush']
+
+#######################################################################################################
+
+Day02
+函数
+创建函数，未声明的函数不能对其进行调用
+def foo():
+    print('in foo')
+    bar()
+foo()		#此处调用函数会报错，找不到bar函数，因为程序从上向下执行
+def bar():
+    print('in bar')
+
+if __name__ == '__main__':
+    foo()
+调用函数
+使用()，不加()只是引用函数，显示函数在内存中的位置
+关键字参数
+参数的个数必须与指定的参数个数相同
+def get_age(name,age):
+    print('%s is %s years old' %(name,age))
+get_age(age=20,name='bob')	#默认参数时从前往后一一对应，否则需用此种方式指定参数值
+
+参数个数不固定的函数
+def func1(*args):		#*args表示一个元组，可以接收任意多个参数 
+    print(args)
+func1()
+func1(20)
+func1(10,20,30,'bob','alias')
+
+def func2(**kwargs):	#**kwargs表示一个字典，存储键值对，接收多个参数
+    print(kwargs)
+func2()
+func2(name='bob',age=20)
+
+函数传递参数时，如果使用*号，表示把这个参数的值拆开
+def add(x,y):
+    print(x + y)
+num = [20,15]
+add(*num)		#将列表的值拆开传参
+
+#加减法小游戏
+#coding:utf-8
+import random
+
+def exam():
+    cmds = {'+':lambda x,y : x + y,'-':lambda x,y: x - y}
+    nums = [random.randint(1,100) for i in range(2)]
+    nums.sort(reverse=True)
+    op = random.choice('+-')
+    result = cmds[op](*nums)
+    prompt = '%s %s %s = ' %(nums[0],op,nums[1])
+    counter = 0
+    while counter < 3:
+        try:
+            answer = int(input(prompt))
+        except:     #except为空表示匹配所有异常,不推荐
+            print()
+            continue
+        if answer == result:
+            print('\nVery good!')
+            break
+        # else:
+        print('\nWrong answer!')
+        counter += 1
+    else:
+        print('%s%s' %(prompt,result))
+
+def main():
+    while True:
+        exam()
+        try:
+            yn = input('Contine(y/n)?').strip()[0]
+        except IndexError:
+            continue
+        except (KeyboardInterrupt,EOFError):
+            yn = 'n'
+        if yn in 'nN':
+            print('\nByeBye!')
+            break
+
+if __name__ == '__main__':
+    main()
+
+匿名函数:没有名称的函数,通过lambda定义
+a = lambda x,y: x + y	#x,y是两个参数,x+y是返回结果
+a(10,20)
+
+filter(func,seq)函数
+import random
+
+def func1(x):   # 接收整数作为参数
+    return x % 2    # 1为True，0为False
+
+if __name__ == '__main__':
+    nums = [random.randint(1, 100) for i in range(10)]
+    # [36, 73, 74, 50, 44, 41, 45, 79, 72, 74]
+    print(nums)
+    # filter的第一个参数是函数，nums中各项将会当成func1的参数
+    # 经过func1的计算，如果返回值是True则保留，False舍弃
+    result = filter(func1, nums)
+    result2 = filter(lambda x: x % 2, nums)	#使用匿名函数
+    print(list(result))
+    print(list(result2))
+
+map(func,seq)函数
+用函数处理seq中的每个元素并保留结果
+result = map(lambda x: x * 2 + 1, nums)
+print(list(result))
+
+变量
+1、全局变量：在函数外面定义的变量。作用域整个程序中都可以调用，直到程序结束
+2、局部变量：在函数内部定义的变量。作用域只在函数内可用，函数调用结束，局部变量消失
+3、全局和局部如果有同名的变量，函数调用时，首先查找局部。局部变量将会把全局变量遮盖住。
+x = 10
+def func():
+    x = 'hello'
+    print(x)
+func()	#局部x，值是hello
+x		#全局x，值是10
+4、在函数内部使用global语句，调用全局变量
+x = 10
+def add():
+    global x
+    x += 10
+    print(x)
+add()		#x的值为20
+print(x)	#x的值为20
+
+名字空间
+系统查询顺序：查找局部变量，全局变量，内建变量
+
+偏函数：相当于改造现有函数，将一些参数固定下来后，生成新的函数
+>>>from functools import partial
+>>> def add(a, b, c, d, e):
+...     return a + b + c + d + e
+函数接受5个参数，但是大多数情况下，调用函数，前4个参数是固定的
+>>> add(10, 20, 30, 40, 5)
+>>> add(10, 20, 30, 40, 8)
+可以改造add函数，将前4个参数固定，生成的新函数取名为myadd
+>>> myadd = partial(add, 10, 20, 30, 40)
+>>> myadd(5)
+>>> myadd(8)
+
+简单的GUI程序代码
+#导入模块
+import tkinter
+from functools import partial
+
+#定义windows句柄
+window = tkinter.Tk()
+#定义界面标签显示内容
+lb = tkinter.Label(window,text='Hello world!')
+#使用偏函数定义tkinter.Button函数
+MyButton = partial(tkinter.Button,window,fg='white',bg='blue')
+#定义三个按钮内容
+b1 = MyButton(text='button 1')
+b2 = MyButton(text='button 2')
+b3 = MyButton(text='button 3',command=window.quit) #选择3退出
+#使用for循环安装3个按钮
+for i in (lb,b1,b2,b3):
+    i.pack()
+#主程序方法，显示窗口
+window.mainloop()
+
+递归函数
+快速排序：将第一个数假设为中间值，比它小的放到小列表，大的放到大列表，再把这三项拼接起来。
+小列表、大列表仍然要用同样的方法继承排序
+import random
+def sort(seq):
+    if len(seq) < 2:
+        return seq
+
+    middle = seq[0]
+    smaller = []
+    larger = []
+    for i in seq[1:]:
+        if middle > i:
+            smaller.append(i)
+        else:
+            larger.append(i)
+    return sort(smaller) + [middle] + sort(larger)
+
+if __name__ == '__main__':
+    nums = [random.randint(1,100) for i in range(10)]
+    print(nums)
+    print(sort(nums))
+
+#冒泡排序
+def sort(seq):
+    count = len(seq)
+    for i in range(0,count):
+        for j in range(i+1,count):
+            if seq[i] > seq[j]:
+                seq[i],seq[j] = seq[j],seq[i]
+    return seq
+if __name__ == '__main__':
+    nums = [random.randint(1,100) for i in range(10)]
+    print(nums)
+    print(sort(nums))
+
+生成器：本质上是一个函数。常规的汉水只能通过return返回一个结果，但是生成器可以通过yield语句返回多个中间结果。
+程序遇到yield会暂停,直到再向生成器取数据时继续执行
+def mygen():
+    yield 'hello world'
+    a = 10 + 320
+    yield a
+    yield [1,2,3]
+a = mygen()
+a.__next__()	#一个一个值调出，且只能调用一次
+for i in a:		#一般使用for循环调用
+    print(i)
+
+每次取文件中10行内容并打印
+def blocks(fobj):
+    content = []
+    counter = 0
+    for line in fobj:
+        content.append(line)    # 向列表追加数据
+        counter += 1
+        if counter == 10:   # 如果已经向列表追加了10行，则生成
+            yield content   # 遇到yield，返回数据，暂停执行，直到再向生成器取数据时才继续向下执行
+            content.clear() # 生成完数据后，再把列表清空
+            counter = 0     # 计数器清0
+    if content:
+        yield content   # 如果最后不足10行，也要把它返回
 
 
+if __name__ == '__main__':
+    fname = '/etc/passwd'
+    with open(fname) as fobj:
+        for lines in blocks(fobj):  # blocks是一个生成器，每次返回10行
+            print(lines)
+            print('*' * 20)
 
+闭包：自定义函数中嵌套自定义函数
+def say_hi(word):
+    def greet():
+        lb.config(text='Hello %s' % word)
+    return greet
 
+装饰器：也是闭包
+def hello():
+    return 'Hello World!'
 
+@set_color	#相当于将welcome传入set_color中，并
+def welcome():
+    return 'Hello China'
 
+def set_color(func):
+    def color():
+        return '\033[31;1m%s\033[0m' % func()
+    return color
 
+if __name__ == '__main__':
+    a = set_color(hello)
+    print(a())
+    b = set_color(welcome)
+    print(b())
 
+查看系统模块文件：按住ctrl会变成超连接
+###########################################################################################
 
+Day03
 
+模块
+1、模块导入的时候会搜索两个路径
+（1）sys.path定义的路径,可以在python中查询已定义路径，''表示当前路径
+（2）PYTHONPATH环境变量定义的路径
+2、导入模块的方法
+import time,os,sys	#导入多个模块，不推荐此写法
+from random import choice	#导入模块中某个函数
+import pickle as p	#导入模块并定义别名
+3、模块文件导入和加载
+一个模块不管被导入多少次，只会被加载一次z
 
+包
+1、类似文件的目录，可以当成特殊的模块
+sys.path.clear()	#实际存放的方式是sys/path/clear.py
+2、如果是python2，需在目录下创建__init__.py文件才能成为包
+3、写到__init__.py文件中的内容将成为包的内容(python2/3一样)
 
+绝对导入
+sys.path和PYTHONPATH
+相对导入
+from . import xxx	#当前目录导入xxx模块
+from .. import xxx #上一级目录导入xxx模块
 
+内置模块
+www.cmd5.com	#密文查询明文网站
+hashlib模块
+1、md5：是一种单向加密的算法。
+/etc/shadow中加密用的是sha512加密方式
+单向加密就是相同的数据总是能生成相同长度的乱码。源数据相同，乱码也一定是相同的。
+不能通过乱码反推回原始数据。可以用来存储密码，也可以用来校验文件的完整性。
+2、应用
+>>> import hashlib
+>>> m = hashlib.md5(b'123456')
+>>> m.hexdigest()
 
+>>> with open('/etc/passwd', 'rb') as fobj:
+...     data = fobj.read()
+>>> m = hashlib.md5(data)
+>>> m.hexdigest()
 
+#生成文件md5值的程序
+import sys
+import hashlib
 
+def check_md5(fname):
+    m = hashlib.md5()
+    with open(fname,'rb') as fobj:
+        while True:
+            data = fobj.read(4096)
+            if not data:
+                break
+            m.update(data)
+    return m.hexdigest()
+
+if __name__ == '__main__':
+    print(check_md5(sys.argv[1]))
+
+tarfile模块
+创建tar文件，支持gzip、bzip2格式
+1、压缩
+>>> import tarfile
+>>> tar = tarfile.open('/tmp/mydemo/anquan.tar.gz', 'w:gz')	#以gz格式创建并打开一个压缩文件
+>>> tar.add('/etc/hosts')	#向压缩文件中添加需要压缩的文件
+>>> import os
+>>> os.chdir('/etc')	#切换目录到/etc下
+>>> tar.add('security')
+>>> tar.close()
+2、解压
+>>> os.chdir('/tmp/mydemo')
+>>> tar = tarfile.open('/tmp/mydemo/anquan.tar.gz', 'r:gz')	#以gz格式打开压缩文件
+>>> tar.extractall()	#解压缩
+>>> tar.close()
 
 
