@@ -1449,7 +1449,7 @@ if __name__ == '__main__':
     print(nums)
     print(sort(nums))
 
-生成器：本质上是一个函数。常规的汉水只能通过return返回一个结果，但是生成器可以通过yield语句返回多个中间结果。
+生成器：本质上是一个函数。常规的函数只能通过return返回一个结果，但是生成器可以通过yield语句返回多个中间结果。
 程序遇到yield会暂停,直到再向生成器取数据时继续执行
 def mygen():
     yield 'hello world'
@@ -1493,7 +1493,7 @@ def say_hi(word):
 def hello():
     return 'Hello World!'
 
-@set_color	#相当于将welcome传入set_color中，并
+@set_color	#相当于将welcome传入set_color中
 def welcome():
     return 'Hello China'
 
@@ -1522,7 +1522,7 @@ import time,os,sys	#导入多个模块，不推荐此写法
 from random import choice	#导入模块中某个函数
 import pickle as p	#导入模块并定义别名
 3、模块文件导入和加载
-一个模块不管被导入多少次，只会被加载一次z
+一个模块不管被导入多少次，只会被加载一次
 
 包
 1、类似文件的目录，可以当成特殊的模块
