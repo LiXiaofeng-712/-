@@ -1815,6 +1815,73 @@ if __name__ == '__main__':
     print(d2.year)
     print(Date.is_date_valid('2019-2-2'))
 
+正则表达式
+匹配单个字符
+.	匹配任意单个字符
+[]	匹配字符组中的任意单个字符
+[^]	匹配不在字符组中的字符
+\d	匹配数字，相当于[0-9]
+\D	\d取反
+\w	匹配数字、字母、下划线，[0-9a-Z_]
+\W	\w取反
+\s	匹配空白字符，相当于[\r\v\f\t\n]
+\S	\s取反
+匹配一组字符
+re1 | re2	匹配正则re1或re2
+*		匹配前一个字符任意次数
++		匹配前一个字符出现最少一次
+?		匹配前一个字符出现最多一次
+{M,N}		匹配前一个字符出现最少M次最多N此
+其他元字符
+^	匹配字符串开头
+$	匹配字符串结尾
+\b	匹配单词边界
+()	对正则表达式分组
+\nn	匹配已保存的子组
+
+贪婪匹配：*、+、？都是贪婪匹配操作符，在其后加上？可以取消贪婪匹配行为（就是最短匹配）
+
+核心函数和方法
+re模块
+>>> import re
+>>> re.match('f..', 'food')  # 如果匹配到模式，返回匹配对象
+>>> print(re.match('f..', 'seafood'))   # 没匹配到返回None
+>>> m = re.match('f..', 'food')
+>>> m.group()   # 通过group方法获取匹配结果
+>>> m = re.search('f..', 'seafood')
+>>> m.group()
+
+>>> re.findall('f..', 'seafood is food')	#返回匹配到的内容
+>>> re.finditer( 'f..', 'seafood is food')
+>>> list(re.finditer( 'f..', 'seafood is food'))
+finditer将匹配到的所有匹配对象组成一个匹配列表
+>>> for m in re.finditer('f..', 'seafood is food'):
+...     m.group()
+
+>>> re.split('\.|-', 'hello-world.tar.gz')  # 以点和-作为分隔符切分
+>>> re.sub('x', 'zs', 'Hi x. nice to meet you, x.')  # 把x替换为zs
+
+如果匹配的数量非常大，可以把模式先编译，以提升效率
+>>> patt = re.compile('f..')
+>>> m = patt.search('seafood')
+>>> m.group()
+>>> patt.findall('seafood is food')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
