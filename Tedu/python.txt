@@ -363,7 +363,9 @@ for i in range(1,10):
         #print('{0}x{1}={2}\t'.format(j,i,(i*j)),end=' ')
     print()
 
-列表解析（列表推倒式）
+列表解析（列表推倒式）def md5(dir):
+    
+
 语法
 [expr for 变量 in 可迭代对象]或	//expr可以和变量搭配使用
 [expr for 变量 in 可迭代对象 if 条件表达式]
@@ -1253,7 +1255,9 @@ pickle是个存储器，可以把任意类型的数据写到文件中，还能�
 
 Day02
 函数
-创建函数，未声明的函数不能对其进行调用
+创建函数，未声明的函数不能对其进行调用def md5(dir):
+    
+
 def foo():
     print('in foo')
     bar()
@@ -1412,6 +1416,11 @@ for i in (lb,b1,b2,b3):
     i.pack()
 #主程序方法，显示窗口
 window.mainloop()
+
+Tkinter： Tkinter 模块(Tk 接口)是 Python 的标准 Tk GUI 工具包的接口 .Tk 和 Tkinter 可以在大多数的 Unix 平台下使用,同样可以应用在 Windows 和 Macintosh 系统里。Tk8.0 的后续版本可以实现本地窗口风格,并良好地运行在绝大多数平台中。
+Label	标签控件；可以显示文本和位图
+Button 按钮控件；在程序中显示按钮。
+Text	文本控件；用于显示多行文本
 
 递归函数
 快速排序：将第一个数假设为中间值，比它小的放到小列表，大的放到大列表，再把这三项拼接起来。
@@ -1585,5 +1594,232 @@ tarfile模块
 >>> tar = tarfile.open('/tmp/mydemo/anquan.tar.gz', 'r:gz')	#以gz格式打开压缩文件
 >>> tar.extractall()	#解压缩
 >>> tar.close()
+
+备份文档程序
+'''
+    需要支持完全和增量备份
+    周一执行完全备份
+    其他时间执行增量备份
+    备份文件需要打包为tar文件并使用gzip格式压缩
+'''
+from time import strftime
+import os
+import tarfile
+import pickle
+import hashlib
+
+#校验文件md5值
+def check_md5(fname):
+    m = hashlib.md5()
+    with open(fname, 'rb') as fobj:
+        while True:
+            data = fobj.read(4096)
+            if not data:
+                break
+            m.update(data)	#更新md5值
+    return m.hexdigest()		#返回文件的md5值
+
+#完全备份
+def full_back(src,dest,md5file):
+    #打包整个文件，并且计算每个文件的md5值
+    #备份名：文件名_完全/增量_时间.tar.gz
+    fname = os.path.basename(src.rstrip('/'))	#获取最右边名字，并取消/
+    fname = '%s_full_%s.tar.gz' %(fname,strftime('%Y%m%d'))
+    fname = os.path.join(dest,fname)	#拼接文件的绝对路径
+
+     #打包文件
+    tar = tarfile.open(fname,'w:gz')
+    tar.add(src)
+    tar.close()
+
+     #对应每个文件生成md5值保存到字典中
+    md5_dict = {}
+    #os.walk递归显示文件，元组形式，第一项是文件目录，第二项是目录下的目录，第三项是目录中的文件，拼接1，3即绝对路径
+    for path,dir,files in os.walk(src):	#遍历目录文件
+        for file in files:		#遍历目录下的文件
+            full_file = os.path.join(path,file)	#将目录名和文件名拼接，得到绝对路径
+            md5_dict[full_file] = check_md5(full_file)	#获得每个文件md5值
+
+     #将字典存入文件，永久保存
+    with open(md5file,'wb') as fobj:
+        pickle.dump(md5_dict,fobj)
+
+def incr_back(src,dest,md5file):
+    fname = os.path.basename(src.rstrip('/'))
+    fname = '%s_incr_%s.tar.gz' % (fname, strftime('%Y%m%d'))
+    fname = os.path.join(dest, fname)
+
+    with open(md5file,'rb') as fobj:
+        old_md5 = pickle.load(fobj)
+
+    new_md5 = {}
+    for path, dir, files in os.walk(src):
+        for file in files:
+            full_file = os.path.join(path, file)
+            new_md5[full_file] = check_md5(full_file)
+
+    tar = tarfile.open(fname,'w:gz')
+    for key in new_md5:
+	  #if key not in old_md5 or new_md5[key] != old_md5[key]:
+        if old_md5.get(key) != new_md5[key]:	#判断老的字典中是否有新字典的值且相等，没有或不等则备份
+            tar.add(key)
+    tar.close()
+
+    with open(md5file,'wb') as fobj:	#更新md5文件
+        pickle.dump(new_md5,fobj)
+
+if __name__ == '__main__':
+    src = '/tmp/mydemo/security/'
+    dest = '/tmp/mydemo/'
+    md5file = '/tmp/mydemo/md5.data'
+    if strftime('%a') == 'Mon':
+        full_back(src,dest,md5file)
+    else:
+        incr_back(src,dest,md5file)
+
+
+OOP：面向对象的编程
+将数据和行为进行融合。可以先创建一个蓝图，然后再根据蓝图创建具体的实例。
+可以极大的减少代码量
+class Bear():   #定义类
+    def __init__(self,color,size):
+        #在实例化的时候，自动调用。实例自动成为第一个参数self
+        self.color = color  #把属性绑定到具体的实例
+        self.size = size
+
+    def sing(self):
+        print('My is %s!' %self.size)
+
+if __name__ == '__main__':
+    bear_big = Bear('brown','large')    #创建实例
+    print(bear_big.color,bear_big.size)
+    bear_big.sing()     #实例bear_big自动成为第一个参数传递
+
+    bear2 = Bear('brown','middle')
+    bear2.sing()	#bear2自动成为第一个参数
+
+
+修改全文某个单词：选中单词shift + f6
+组合：在类中加入其他的类增加功能
+class Vendor:
+    def __init__(self, ph):
+        self.phone = ph
+
+class Bear:
+    def __init__(self, color, size, phone):
+        self.color = color  # 把属性绑定到具体的实例
+        self.size = size
+        self.vendor = Vendor(phone)	#类中调用其他类，组合
+
+    def sing(self):
+        print("My color is %s, Lalala" % self.color)
+
+if __name__ == '__main__':
+    bear1 = Bear('Brown', 'Large', '400-123-5678')
+    print(bear1.vendor.phone)
+    v1 = Vendor('400-111-2222')
+    print(v1.phone)
+
+创建子类（派生或继承）
+在圆括号中写明父类名即可继承其所有属性和方法
+若子类和父类有相同的方法，父类将被覆盖，若不想覆盖，明确指明使用父类的方法，可用super函数
+class Bear():   #定义类
+    def __init__(self,color,size):
+        #在实例化的时候，自动调用。实例自动成为第一个参数self
+        self.color = color  #把属性绑定到具体的实例
+        self.size = size
+
+    def sing(self):
+        print('My is %s!' % self.size)
+
+class NewBear(Bear):	#创建子类，包含父类(基类)的所有方法和属性，还有自身额外的一些属性和方法
+    def __init__(self,name,color,size):
+        #Bear.__init__(self,color,size)	#效果与下相同，但不推荐，尽量不要出现父类名字
+        super(NewBear, self).__init__(color,size)  #推荐写法，调用父类方法
+        self.name = name
+
+    def run(self):
+        print('I can run...')
+
+if __name__ == '__main__':
+    bear1 = NewBear('brown','larger')
+    print(bear1.color,bear1.size)
+    bear1.run()
+    print(bear1.name)
+
+多重继承：一个子类可以拥有多个父类的属性
+若父类中有相同的方法，子类查找顺序：自身查找-->从左向右，找到第一个就停止
+class A():
+    def hello(self):
+        print('hello')
+
+class B():
+    def welcome(self):
+        print('welcome')
+
+class C(A,B):	#继承多个父类
+    pass
+
+if __name__ == '__main__':
+    mc = C()
+    mc.hello()
+    mc.welcome()
+
+特殊方法
+OOP编程时，有一些以__开头和结尾的方法，被称作magic魔法方法
+class Book():
+    def __init__(self,title,author):	#构造函数，默认会第一个调用此方法
+        self.title = title
+        self.author = author
+
+    def __str__(self):	#用于将值转化为适于人阅读的形式
+        return '《%s》'%self.title
+
+    def __call__(self):	#调用类时使用此方法
+        print('《%s》is written by %s' %(self.title,self.author))
+
+if __name__ == '__main__':
+    core_py = Book('Core Python','Wesley')	#调用__init__
+    print(core_py)	#调用__str__
+    core_py()		#调用__call__
+
+类方法
+1、使用classmethod装饰器定义，第一个参数cls表示类本身（了解即可）
+2、静态方法staticmethod
+class Date:
+    def __init__(self, year, month, day):
+        self.year = year
+        self.month = month
+        self.day = day
+
+    @classmethod   # 声明成类方法，没有实例也可以调用
+    def create_date(cls, str_date):  # cls表示类Date,不是实例
+        """
+        一般来说，需要先创建实例，再通过实例调用方法。没有实例就需要调用方法
+        可以将方法声明为类方法。
+        """
+        date_list = str_date.split('-')
+        y = int(date_list[0])
+        m = int(date_list[1])
+        d = int(date_list[2])
+        return cls(y, m, d)
+
+    @staticmethod  # 定义静态方法。相当于跟类没有任何关系，硬塞到类中的方法
+    def is_date_valid(str_date):
+        y, m, d = map(int, str_date.split('-'))
+        return y < 4000 and 1 <= m <= 12 and 1 <= d <=31
+
+if __name__ == '__main__':
+    d1 = Date(2019, 2, 20)
+    d2 = Date.create_date('2019-2-21')  # 通过类方法创建实例
+    print(d2.year)
+    print(Date.is_date_valid('2019-2-2'))
+
+
+
+
+
+
+
 
 
