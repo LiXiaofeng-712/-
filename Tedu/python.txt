@@ -1814,7 +1814,9 @@ if __name__ == '__main__':
     d2 = Date.create_date('2019-2-21')  # 通过类方法创建实例
     print(d2.year)
     print(Date.is_date_valid('2019-2-2'))
+############################################################################################
 
+Day04
 正则表达式
 匹配单个字符
 .	匹配任意单个字符
@@ -1867,10 +1869,59 @@ finditer将匹配到的所有匹配对象组成一个匹配列表
 >>> m.group()
 >>> patt.findall('seafood is food')
 
+'''
+编写count_patt.py脚本，实现一个apche日志分析脚本：
 
+    统计每个客户端访问apache服务器的次数
+    将统计信息通过字典的方式显示出来
+    分别统计客户端是Firefox和MSIE的访问次数
+    分别使用函数式编程和面向对象编程的方式实现
+'''
+import re
 
+#使用对象模式
+class CountPatt():
+    def __init__(self,fname):
+        self.name = fname
 
+    def count_patt(self,patt):
+        cpatt = re.compile(patt)
+        patt_dict = {}
+        with open(self.name) as fobj:
+            for line in fobj:
+                m = cpatt.search(line)
+                if m:
+                    key = m.group()
+                    patt_dict[key] = patt_dict.get(key,0) + 1
+        return patt_dict
 
+#使用函数模式
+def count_patt(fname, patt):
+    cpatt = re.compile(patt)  # 编译模式，提升效率
+    patt_dict = {}
+    with open(fname) as fobj:
+        for line in fobj:
+            m = cpatt.search(line)
+            if m:  # 如果匹配到了，返回的是匹配对象，非空即为真，没匹配到是None，None是假
+                key = m.group()
+                # if key not in patt_dict:
+                #     patt_dict[key] = 1
+                # else:
+                #     patt_dict[key] += 1
+                patt_dict[key] = patt_dict.get(key, 0) + 1
+    return patt_dict
+
+if __name__ == '__main__':
+    fname = 'access_log'
+    ip = '^(\d+\.){3}\d+'   # 1.10.125.3, 1000.12345.23.1234567
+    print(count_patt(fname, ip))
+    br = 'Chrome|Firefox|MSIE'
+    print(count_patt(fname, br))
+    print(count_patt('/etc/passwd', 'bash$|nologin$'))
+    w = CountPatt(fname)		#定义实例
+    print(w.count_patt(br))
+
+套接字
 
 
 
