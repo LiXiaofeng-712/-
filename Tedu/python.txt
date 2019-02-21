@@ -1440,7 +1440,7 @@ def sort(seq):
             larger.append(i)
     return sort(smaller) + [middle] + sort(larger)
 
-if __name__ == '__main__':
+if __name__ == '__main__':   
     nums = [random.randint(1,100) for i in range(10)]
     print(nums)
     print(sort(nums))
@@ -1921,16 +1921,230 @@ if __name__ == '__main__':
     w = CountPatt(fname)		#定义实例
     print(w.count_patt(br))
 
-套接字
+socket模块：网络编程的底层模块
+套接字：抽象概念，可以想象成网卡接口。需要绑定地址信息(TCP/UDP、IP地址、端口)
+TCP服务器创建过程
+addr = ('127.0.0.1','12345')
+s = socket.socket()	#创建套接字
+s.bind(addr)	#绑定地址和端口到套接字
+s.listen()	#启动监听
+s.accept()	#接受客户端连接(数据，地址端口)
+recv()/sedn()	#与客户端通信
+s.close()	#关闭套接字
+
+TCP客户端创建过程
+addr = ('127.0.0.1','12345')
+c = socket.socket()	#创建套接字
+c.connect(addr)		#请求建立连接
+c.send()/c.recv()		#与服务器通信
+c.close		#关闭套接字
+
+UDP服务器创建过程
+addr = ('127.0.0.1','12345')
+s = socket.socket()	
+s.bind(addr)
+s.recvfrom()/s.sendto()
+s.close
+
+UDP客户端创建过程
+c = socket.socket()
+c.sendto()/c.recvfrom()
+c.close()
+
+#创建TCP服务器
+import socket
+
+host = ''   # 0.0.0.0
+port = 12345
+addr = (host, port)
+s = socket.socket()  # 默认创建TCP套接字
+# 当程序结束后，系统默认会把地址保留1分钟，1分钟内任何程序都无法使用这个端口
+# 加上以下选项，可以立即重新运行起来服务
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(addr)   # 将地址绑定到套接字
+s.listen(1)  # 启动监听，1表示允许的客户端数目，必须提供，但是没有太大意义
+cli_sock, cli_addr = s.accept()  # 接收客户端的连接请求，返回元组(客户机套接字, 客户机地址)
+data = cli_sock.recv(1024)  # 一次最多接收1024字节，类似于文件的read
+print(data)
+print(data.decode())  # 将bytes类型转换成utf8字符
+sdata = '吃了吗？\r\n'  # 网络发送数据一般结尾是回车换行
+# sdata是UTF8编码，发送的时候，用encode把UTF8编码转成bytes类型
+cli_sock.send(sdata.encode())  # 网络发送数据要求是bytes类型
+cli_sock.close()  # 关闭客机户机套接字
+s.close()  # 关闭服务器套接字
+
+#创建TCP服务器与客户端循环交互
+import socket
+
+host = ''
+port = 12345
+addr = (host, port)
+s = socket.socket()
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(addr)
+s.listen(1)
+
+while True:
+    try:
+        cli_sock, cli_addr = s.accept()
+    except KeyboardInterrupt:
+        break
+    while True:
+        data = cli_sock.recv(1024)
+        if data.strip() == b'quit':
+            break
+        print(data.decode())
+        sdata = input('> ') + '\r\n'
+        cli_sock.send(sdata.encode())
+    cli_sock.close()
+
+s.close()
 
 
+#创建TCP客户端
+import socket
+
+server = '127.0.0.1'
+port = 12345
+addr = (server,port)
+c = socket.socket()
+c.connect(addr)
+
+while True:
+    data = input('>>>') + '\r\n'
+    c.send(data.encode())
+    if data.strip() == 'quit':
+        break
+    rdata = c.recv(1024)
+    print(rdata.decode())
+
+c.close()
+
+#创建UDP服务器
+import socket
+
+host = ''
+port = 12345
+addr = (host,port)
+s = socket.socket(type=socket.SOCK_DGRAM)
+s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+s.bind(addr)
+
+while True:
+    data,cli_addr = s.recvfrom(1024)
+    print(data.decode())
+    sdata = input('>') + '\r\n'
+    s.sendto(sdata.encode(),cli_addr)
+
+s.close()
+
+#创建UDP客户端
+import socket
+
+host = '127.0.0.1'
+port = 12345
+addr = (host,port)
+c = socket.socket(type=socket.SOCK_DGRAM)
+
+while True:
+    data = input('>') + '\r\n'
+    if data.strip() == 'quit':
+        break
+    c.sendto(data.encode(),addr)
+    rdata,serv_addr = c.recvfrom(1024)
+    print(rdata.decode())
+
+c.close()
+
+使用OOP创建TCP服务器
+from time import strftime
+import socket
+
+class TcpTimeServ:
+    def __init__(self,host,port):
+        self.addr = (host,port)
+        self.serv = socket.socket()
+        self.serv.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+        self.serv.bind(self.addr)
+        self.serv.listen(1)
+
+    def chat(self,cli_sock):
+        while True:
+            data = cli_sock.recv(1024)
+            data = data.decode()
+            if data.strip() == 'quit':
+                break
+            sdata = '[%s] %s' %(strftime('%H:%M:%S'),data)
+            cli_sock.send(sdata.encode())
+
+    def mainloop(self):
+        while True:
+            try:
+                cli_sock,cli_data = self.serv.accept()
+            except (KeyboardInterrupt,EOFError):
+                break
+            self.chat(cli_sock)
+            cli_sock.close()
+
+if __name__ == '__main__':
+    tcp = TcpTimeServ(host='',port=12345)
+    tcp.mainloop()
+####################################################################################
+
+Devops
+Day01
+多进程、多线程主要用于提升效率
+
+脚本执行方式：
+1、# bash script.sh    => fork执行，使用bash作为解释器
+2、# ./script.sh   => fork执行，使用脚本中指定的解释器
+3、# source script.sh  => 在当前进程中执行，不会fork出子进程
+
+fork编程思路：
+1、父子进程的分工
+2、一般来说，父进程用于生成子进程
+3、子进程做具体的工作，工作结束后要退出(exit)
+
+#fork多进程测试主机存活状态
+import subprocess
+import os
+
+def ping(host):
+    rc = subprocess.call('ping -c2 -i 0.2 %s &> /dev/null' %host,shell=True)
+    if rc == 0:
+        print('%s:up' %host)
+    else:
+        print('%s:down' %host)
 
 
+if __name__ == '__main__':
+    ips = ['176.121.202.%s'%i for i in range(1,255)]
+    for i in ips:
+        ret_val = os.fork()
+        if not ret_val:
+            ping(i)
+            exit()
 
 
+#解决僵尸进程
+当父进程的waitpid执行时，检测子进程是僵尸进程时处理，不是则不处理
+import os
+import time
 
-
-
+ret_val = os.fork()
+if ret_val:
+    print('父进程')
+    time.sleep(10)
+    #waitpid一次只能处理一个僵尸进程
+    result = os.waitpid(-1,1)	#waitpid(子进程PID，状态)，状态0表示刮起父进程，1表示不挂起父进程
+    print(result)	#（0，0）,waitpid已处理僵尸进程，所以返回PID为0
+    time.sleep(10)
+    print('父进程结束')
+else:
+    print('子进程')
+    time.sleep(30)	#父进程20秒结束，30秒后子进程结束将变成僵尸进程
+    print('子进程结束')
+    exit()
 
 
 
