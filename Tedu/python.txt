@@ -605,9 +605,9 @@ with open('/etc/passwd','rb') as src_file:
         shutil.copyfileobj(src_file,dst_file)
 #拷贝文件,只能拷贝文件
 shutil.copyfile('/etc/passwd','/tmp/mima2')
-#拷贝文件到文件或目录下，同时复制权限
+#拷贝cpoy文件到文件或目录下，同时复制权限
 shutil.copy('/etc/shadow','/tmp')
-#与copy相同，但会尝试保留所有文件元数据
+#与copy -p相同，但会尝试保留所有文件元数据
 shutil.copy2()
 
 移动
@@ -1990,7 +1990,7 @@ while True:
     except KeyboardInterrupt:
         break
     while True:
-        data = cli_sock.recv(1024)
+        data,cli_addr = cli_sock.recv(1024)
         if data.strip() == b'quit':
             break
         print(data.decode())
@@ -2136,8 +2136,8 @@ if ret_val:
     print('父进程')
     time.sleep(10)
     #waitpid一次只能处理一个僵尸进程
-    result = os.waitpid(-1,1)	#waitpid(子进程PID，状态)，状态0表示刮起父进程，1表示不挂起父进程
-    print(result)	#（0，0）,waitpid已处理僵尸进程，所以返回PID为0
+    result = os.waitpid(-1,0)	#waitpid(-1，状态)，-1默认参数，表示与wait函数相同，状态0表示挂起父进程，1表示不挂起父进程
+    print(result)	#（0，0） #返回值第一个参数0表示子进程尚未结束，否则返回子进程PID
     time.sleep(10)
     print('父进程结束')
 else:
@@ -2145,6 +2145,170 @@ else:
     time.sleep(30)	#父进程20秒结束，30秒后子进程结束将变成僵尸进程
     print('子进程结束')
     exit()
+
+
+fork服务器：父进程负责生成子进程，子进程与客户端通信
+父进程接收到客户端连接后，生成子进程，父子进程都有服务器套接字和客户机套接字，
+父进程用不到客户机套接字，可以将其关闭；同理子进程也可以将服务器套接字关闭
+
+import socket
+import os
+from time import strftime
+
+class TcpTimeServ:
+    def __init__(self, host, port):
+        '初始化结束后，生成一个可以用的TCP套接字'
+        self.addr = (host, port)
+        self.serv = socket.socket()
+        self.serv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.serv.bind(self.addr)
+        self.serv.listen(1)
+
+    def chat(self, cli_sock):
+        while True:
+            data = cli_sock.recv(1024)
+            data = data.decode()
+            if data.strip() == 'quit':
+                break
+            sdata = "[%s] %s" % (strftime('%H:%M:%S'), data)
+            cli_sock.send(sdata.encode())
+
+    def mainloop(self):
+        while True:
+            try:
+                cli_sock, cli_addr = self.serv.accept()
+            except KeyboardInterrupt:
+                break
+            ret_val = os.fork()
+            if not ret_val:  # 子进程
+                self.serv.close()  # 关闭服务器套接字
+                self.chat(cli_sock)  # 与客户机通信
+                exit()  # 退出
+            cli_sock.close()  # 父进程关闭客户机套接字
+
+            while True:
+                result = os.waitpid(-1, 1)  # 一个waitpid只能处理一个子进程
+                if result[0] == 0:  # result是个元组
+                    break
+
+        self.serv.close()
+
+if __name__ == '__main__':
+    tcp = TcpTimeServ(host='', port=12345)  # 调用__init__
+    tcp.mainloop()
+
+
+
+《python基础教程 第三版》
+
+程序：存储在磁盘上的可执行文件
+进程：加载到内存中的一系列指令，每个进程有自己的运行空间
+线程：轻量级进程，一个进程可以包含多个线程。进程内的线程共享进程的内存空间
+
+
+多线程编程：
+1、主线程和工作线程
+2、主线程负责生成工作线程
+3、工作线程做具体的工作，不会产生僵尸进程
+Windows只有多线程，没有多进程
+
+import threading
+import socket
+from time import strftime
+
+class TcpTimeServ:
+    def __init__(self,host,port):
+        self.addr = (host,port)
+        self.serv = socket.socket()
+        self.serv.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+        self.serv.bind(self.addr)
+        self.serv.listen(1)
+
+    def chat(self,cli_sock):
+        while True:
+            data = cli_sock.recv(1024)
+            data = data.decode()
+            if data.strip() == 'quit':
+                break
+            sdata = '[%s] %s' %(strftime('%H:%M:%S'),data)
+            cli_sock.send(sdata.encode())
+        cli_sock.close()
+
+    def mainlook(self):
+        while True:
+            try:
+                cli_sock,cli_addr = self.serv.accept()
+            except (KeyboardInterrupt,EOFError):
+                break
+            t = threading.Thread(target=self.chat,args=(cli_sock,))
+            t.start()
+        self.serv.close()
+
+if __name__ == '__main__':
+    tcp = TcpTimeServ('',12345)
+    tcp.mainlook()
+
+GIL：Global Interpreter Lock全局解释器锁
+GIL限制某一时刻只能有一个线程使用解释器
+
+CPU密集型(计算密集型)应用：多进程适合，多线程不能提升效率
+IO密集型应用：多进程和多线程都可以提升效率
+多进程：多个CPU同时工作
+多线程：单个CPU轮流工作，不是同时工作
+
+import time
+import os
+import threading
+
+def add(n=20000000):
+    result = 0
+    for i in range(n):
+        result += i
+    print(result)
+
+if __name__ == '__main__':
+    start = time.time()
+
+     #单进程模式
+    # for i in range(5):
+    #     add()
+
+     #多进程模式
+    # for i in range(5):
+    #     ret_val = os.fork()  # 创建两个子进程，分别计算
+    #     if not ret_val:
+    #         add()
+    #         exit()
+
+     #多线程模式
+    # for i in range(5):
+    #     os.waitpid(-1, 0)  # 一个waitpid只能挂起处理一个子进程
+    tlist = []
+    for i in range(5):
+        t = threading.Thread(target=add)
+        t.start()
+        tlist.append(t)  # 把线程存入列表
+    for t in tlist:  # 在列表中取出线程
+        t.join()     # 挂载主线程，等待工作线程结束
+    end = time.time()
+    print(end - start)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
