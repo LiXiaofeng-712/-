@@ -2131,7 +2131,7 @@ if __name__ == '__main__':
 import os
 import time
 
-ret_val = os.fork()
+ret_val = os.fork()	#返回2个值,针对父进程返回进程的PID,对于子进程,返回PID
 if ret_val:
     print('父进程')
     time.sleep(10)
@@ -2278,11 +2278,11 @@ if __name__ == '__main__':
     #     ret_val = os.fork()  # 创建两个子进程，分别计算
     #     if not ret_val:
     #         add()
-    #         exit()
-
-     #多线程模式
+    #         exit() 
     # for i in range(5):
     #     os.waitpid(-1, 0)  # 一个waitpid只能挂起处理一个子进程
+
+     #多线程模式
     tlist = []
     for i in range(5):
         t = threading.Thread(target=add)
