@@ -2717,15 +2717,114 @@ HTTP状态码：
 eog：打开图片文件
 file：查看文件类型
 
+#################################
+爬虫爬取网页图片
+
+from urllib import request
+import os
+import re
+import time
+
+def down(url,fname):
+    html = request.urlopen(url)
+    with open(fname,'wb') as fobj:
+        while True:
+            data = html.read(1024)
+            if not data:
+                break
+            fobj.write(data)
+
+def get_urls(patt,fname,encoding='utf8'):
+    cpatt = re.compile(patt)
+    alist = []
+
+    with open(fname,encoding=encoding) as fobj:
+        for line in fobj:
+            m = cpatt.search(line)
+            if m:
+                alist.append(m.group())
+
+    return alist
 
 
+if __name__ == '__main__':
+    fname = '/tmp/myimg'
+    if not os.path.exists(fname):
+        os.mkdir(fname)
+    get_fname = os.path.join(fname,'163.html')
+    url_163 = 'http://www.163.com'
+    down(url_163,get_fname)
+    patt = 'https?://[-\w./]+\.(png|jpg|jpeg|gif)'
+    url_img = get_urls(patt,get_fname,encoding='gbk')
+    start = time.time()
+    for line in url_img:
+        ret_val = os.fork()
+        if not ret_val:
+            # tmp = os.path.join(fname,os.path.basename(line))
+            tmp = os.path.join(fname,line.split('/')[-1])
+            # print(tmp)
+            down(line,tmp)
+            exit()
+    end = time.time()
+    print(end - start)
 
 
+模拟通过浏览器访问WEB服务器
+1、配置头部信息
+>>> from urllib import request
+>>> header = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0'}
+2、创建Request对象
+>>> url = 'http://127.0.0.1/'
+>>> r = request.Request(url, headers=header)
+3、打开Request对象，观察日志
+>>> html = request.urlopen(r)
+
+数据编码：
+在URL中，只支持一部分字符集，其他字符需要进行编码。
+1、如，在搜狗中搜索“达内”，URL可以看到汉字，但是复制到下面，这就是这样的显示：
+https://www.sogou.com/web?query=%E8%BE%BE%E5%86%85
+2、通过urllib进行数据编码
+>>> url = 'https://www.sogo.com/web?query='
+>>> word = request.quote('达内')
+>>> url + word
+'https://www.sogo.com/web?query=%E8%BE%BE%E5%86%85'
+
+异常处理
+1、环境准备
+http://127.0.0.1/abc   => 不存在
+http://127.0.0.1/ban   -> 没权限
+2、通过urllib进行访问，观察异常
+>>> url1 = 'http://127.0.0.1/abc/'
+>>> url2 = 'http://127.0.0.1/ban/'
+>>> request.urlopen(url1)
+>>> request.urlopen(url2)
+3、异常处理
+>>> import urllib.error
 
 
-
-
-
+paramiko模块：ssh客户端
+1、安装
+[root@room8pc16 zzg_pypkgs]# cd paramiko_pkgs/
+[root@room8pc16 paramiko_pkgs]# pip3 install *
+2、应用
+>>> import paramiko
+>>> ssh = paramiko.SSHClient()  # 创建SSHClient的实例
+>>> ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # 回答yes
+>>> ssh.connect('192.168.4.4', username='root', password='123456')
+>>> ssh.exec_command('mkdir /tmp/mydemo')  # 执行命令
+>>> ssh.close()  # 关闭连接
+3、执行命令的返回值
+>>> ssh = paramiko.SSHClient()
+>>> ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+>>> ssh.connect('192.168.4.4', username='root', password='123456')
+>>> result = ssh.exec_command('id root; id tom')
+>>> len(result)  => 3
+执行命令返回的值共有3项，分别是输入、输出和错误的类文件对象
+>>> result[1].read()
+b'uid=0(root) gid=0(root) \xe7\xbb\x84=0(root)\n'
+>>> result[2].read()
+b'id: tom: no such user\n'	#默认输出时bytes，加decode()可转换为string类型输出
+>>> ssh.close()
 
 
 
