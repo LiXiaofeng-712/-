@@ -2801,6 +2801,18 @@ http://127.0.0.1/ban   -> 没权限
 3、异常处理
 >>> import urllib.error
 
+qq主页，下载后通过file命令查看，它是gzip文件，不是html文件。
+>>> import gzip
+>>> f = gzip.open('/tmp/qq.html', 'rb')
+>>> data = f.read()
+>>> f.close()
+>>> data.decode('gbk')  # 默认是utf8
+
+#高层应用支持的模块wget
+[root@room8pc16 day04]# pip3 install wget
+>>> import wget
+>>> wget.download(url='https://upload-images.jianshu.io/upload_images/12347101-0548326de2ebc9bc.png', '/tmp/')
+
 
 paramiko模块：ssh客户端
 1、安装
@@ -2827,8 +2839,91 @@ b'id: tom: no such user\n'	#默认输出时bytes，加decode()可转换为string
 >>> ssh.close()
 
 
+###################实现简单的PSSH########################
+import paramiko
+import os
+import threading
+import sys
+import getpass
+
+def rcmd(host,passwd=None,cmds=None,port=22,user='root'):
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(host,password=passwd,port=port,username=user)
+    stdin,stdout,stderr = ssh.exec_command(cmds)
+    out = stdout.read()
+    err = stderr.read()
+    if out:
+        print('[\033[32;1mOUT\033[0m] %s:\n%s' %(host,out.decode()))
+    if err:
+        print('[\033[31;1mERROR\033[0m] %s:\n%s' % (host, err.decode()))
+    ssh.close()
+
+if __name__ == '__main__':
+    if not sys.argv != 3:
+        print('Usage: %s ipfile "command"' % sys.argv[0])
+        exit(1)
+    if not os.path.isfile(sys.argv[1]):
+        print('No such file:', sys.argv[1])
+        exit(2)
+    ipfile = sys.argv[1]
+    cmd = sys.argv[2]
+    password = getpass.getpass()
+    with open(ipfile) as fobj:
+        for line in fobj:
+            ip = line.strip()
+            # rcmd(ip,passwd=password,cmds=cmd)
+            t = threading.Thread(target=rcmd,args=(ip,password,cmd))
+            t.start()   #target(ip,password,cmd)
 
 
+###########################################################################################
+
+Day04
+
+#单机版发送邮件测试
+from email.mime.text import MIMEText
+from email.header import Header
+import smtplib
+
+# 准备邮件
+message = MIMEText('Python email test.\r\n', 'plain', 'utf8')
+message['From'] = Header('root', 'utf8')
+message['To'] = Header('bob', 'utf8')
+message['Subject'] = Header('Email Test', 'utf8')
+
+# 发送邮件
+smtp = smtplib.SMTP(host='127.0.0.1')
+smtp.sendmail('root@tedu.cn', ['root@localhost', 'bob@localhost'], message.as_bytes())
+
+
+#使用python在网络发送邮件
+from email.mime.text import MIMEText
+from email.header import Header
+import smtplib
+import getpass
+
+def send_email(text,sender,receivers,subject,host,user,passwd):
+    message = MIMEText(text,'plain','utf8')
+    message['From'] = Header(sender)    #新浪不支持两个utf8参数
+    message['To'] = Header(receivers[0],'utf8')
+    message['Subject'] = Header(subject,'utf8')
+
+    smtp = smtplib.SMTP()
+    smtp.connect(host)
+    # smtp.starttls()    #若有加密需求开启此选项
+    smtp.login(user,passwd)
+    smtp.sendmail(sender,receivers,message.as_string())
+
+if __name__ == '__main__':
+    text = '这是一封python测试邮件'
+    sender = 'lxf_712@sina.com'
+    receivers = ['lxf_712@sina.com']
+    subject = 'Email Test'
+    host = 'smtp.sina.com'
+    user = 'lxf_712@sina.com'
+    passwd = getpass.getpass()
+    send_email(text,sender,receivers,subject,host,user,passwd)
 
 
 
