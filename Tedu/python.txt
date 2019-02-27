@@ -59,7 +59,7 @@ git commit -m "描述信息"
 安装docker容器，并下载gitlab_zh.tar镜像文件，导入
 docker load < gitlab_zh.tar 
 修改真迹ssh端口后，启动容器
-docker run -d -h gitlab --name gitlab -p 443:443 -p 80:80 -p 22:22 --restart always -v /srv/gitlab/config:/etc/gitlab -v /srv/gitlab/logs:/var/log/gitlab -v /srv/gitlab/data gitlab_zh:latest 
+docker run -d -h gitlab --name gitlab -p 443:443 -p 80:80 -p 22:22 --restart always -v /srv/gitlab/config:/etc/gitlab -v /srv/gitlab/logs:/var/log/gitlab -v /srv/gitlab/data \ gitlab_zh:latest 
 -d 后台运行
 -h 设置虚拟机的主机名
 --name 设置容器名
@@ -206,7 +206,7 @@ dict['tel']
 按存储模型分类
   -标量类型：数值，字符串
   -容器类型：列表，元组，字典
-按更新模型分类
+存储模型分类
   -可变类型：列表，字典
   -不可变类型：数值，字符串，元组
 按访问模型分类
@@ -2924,6 +2924,153 @@ if __name__ == '__main__':
     user = 'lxf_712@sina.com'
     passwd = getpass.getpass()
     send_email(text,sender,receivers,subject,host,user,passwd)
+
+
+requests模块：实现web客户端
+Requests内部采用来urillib3
+1、安装
+# cd requests_pkgs/
+[root@room8pc16 requests_pkgs]# pip3 install *
+2、获取网络资源（文本）
+>>> import requests
+>>> r = requests.get('http://www.baidu.com')
+>>> r.text
+如果出现乱码，可以修改字符编码
+>>> r.encoding   # ISO-8859-1
+>>> r.encoding = 'utf8'
+>>> r.text
+3、获取网络资源（JSON格式数据）
+url = 'http://www.weather.com.cn/data/sk/101010100.html'
+>>> r = requests.get(url)
+>>> r.encoding = 'utf8'
+>>> r.json()
+>>> bj = r.json()
+>>> bj['weatherinfo']['SD']
+4、获取网络资源（非文本数据）
+>>> url = 'https://upload-images.jianshu.io/upload_images/1857973-202b35156b596a68'>>>
+>>> r = requests.get(url)
+>>> with open('/tmp/m.jpg', 'wb') as fobj:
+...     fobj.write(r.content)
+5、修改头部信息
+>>> headers = {'User-Agent': "Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0"}
+>>> r = requests.get('http://127.0.0.1', headers=headers)
+6、状态码
+>>> r.status_code
+>>> r = requests.get('http://127.0.0.1/abc')
+>>> r.status_code   # 404
+7、使用参数（查快递）
+参考：http://yshblog.com/blog/33
+>>> url = 'http://www.kuaidi100.com/query'
+>>> params = {'type': 'yunda', 'postid': '3834440052379'}
+>>> r = requests.get(url, params=params)
+>>> r.json()
+>>> r.json()['data'][0]['context']
+
+
+#官方文档：https://www.zabbix.com/documentation/4.0/zh/manual
+zabbix api:
+http://192.168.4.2/zabbix/api_jsonrpc.php		#根据实际情况寻找此文件路径
+
+import requests
+import json
+
+url = 'http://192.168.4.2/zabbix/api_jsonrpc.php'		
+headers = {'Content-Type': 'application/json-rpc'}	#官方文档API手册首页有详细介绍
+###################################
+# 版本信息不需要认证
+# data = {
+#     "jsonrpc": "2.0",  # jsonrpc协议的版本，固定的
+#     "method": "apiinfo.version",  # 方法，获取zabbix版本
+#     "params": [],   # 参数
+#     "id": 11  # 随便填写一个数字，表示执行任务的ID
+# }
+###################################
+# 通过用户名和密码生成一个token通行证
+# 66bd7e91aa832a7f113acf81f5307bb5
+# data = {
+#     "jsonrpc": "2.0",
+#     "method": "user.login",
+#     "params": {
+#         "user": "Admin",
+#         "password": "zabbix"
+#     },
+#     "id": 1
+# }
+###################################
+#
+data = {
+    "jsonrpc": "2.0",
+    "method": "host.get",
+    "params": {
+        "filter": {
+            "host": [
+                "Zabbix server",
+                "Linux server"
+            ]
+        }
+    },
+    "auth": "66bd7e91aa832a7f113acf81f5307bb5",
+    "id": 1
+}
+###################################
+r = requests.post(url, headers=headers, data=json.dumps(data))
+print(r.json())
+
+
+################################################################################
+
+Day05
+开发->发布流程
+1、程序员将写好的代码从本地推送到gitlab服务器
+2、发布服务器(jenkins)到gitlab上拉取代码
+3、jenkins服务器处理代码(比如，将java程序包通maven等程序打包成war包)
+4、应用服务器从jenkins上下载软件包(如war包)
+5、部署到应用服务器(如tomcat把war包放到文档目录后，重启服务即可自动解压war包)
+
+CI/CD(持续集成/持续交付)
+
+jenkins应用
+1、虚拟机网络
+# virt-manager -> 编辑 -> 连接详情 -> 虚拟网络 -> 激活default
+default网络是kvm的默认网络，采用nat模式，连到此网络的虚拟机可以直接上网
+
+2、准备一台虚拟机，安装jenkins。jenkins需要外网下载插件
+node4:
+eth0: private1  192.168.4.4/24
+eth1: 连接到default网络，用于互联网联接
+(1) # nmtui  -> 添加新网络eth1，IP地址采用自动获取的方式
+(2) # ifconfig virbr0 down
+(3) # brctl delbr virbr0
+(4) # systemctl restart NetworkManager
+3、配置yum
+
+4、安装jenkins
+(1)拷贝jenkins到虚拟机并安装
+[root@node4 ~]# rpm -ihv jenkins-2.138.2-1.1.noarch.rpm
+(2) 启动
+[root@node4 ~]# systemctl start jenkins
+[root@node4 ~]# systemctl enable jenkins
+5、配置
+访问http://192.168.4.4:8080
+安装插件时，选择自定义后不安装任何插件。因为现在是到国外远程服务器安装，速度太慢
+6、通过国内镜像站点安装插件
+https://blog.csdn.net/you227/article/details/81076032
+https://mirrors.tuna.tsinghua.edu.cn/jenkins/updates/update-center.json
+
+7、安装插件
+可选插件 -> Git Parameter -> 直接安装 -> 安装完成后重启Jenkins(空闲时)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
