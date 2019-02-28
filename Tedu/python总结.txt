@@ -1,0 +1,46 @@
+总结
+
+一、基础知识
+1、python语法结构：缩进、注释
+2、变量：命令规则
+3、运算符：算术运算符、逻辑运算符、比较运算符
+4、数据类型比较：按存储模型分类、存储模型分类、按访问模型分类
+5、常用语句：if、三元运算符、while、for、列表解析
+6、文件处理：打开文件对象、读写文件（read、write、seek、tell）、关闭文件对象
+7、函数：形参/实参、默认参数、位置参数、*/**作用
+8、匿名函数：lambda、filter、map
+9、集合：概念、作用
+10、异常处理：try-except、try-finally、raise、assert
+11、递归函数、生成器（yield）、闭包、装饰器
+12、OOP面向对象编程：类、派生或继承、多重继承、特殊方法（以__开头结尾的方法）、类方法（classmethod/staticmethod）
+13、正则表达式
+二、模块
+shutil    	==>  操作文件模块（拷贝文件、移动删除目录、权限管理）
+os			  	==>  系统操作（fork多进程）
+threading  	==>  多线程模块
+keyword   	==>  关键字检测模块
+string	  	==>  字符串操作模块
+subprocess	==>  使用系统命令模块
+getpass			==>  隐藏密码模块	
+time				==>  时间模块
+datetime		==>  时间模块（时间比较）
+pickle			==>  文件操作模块（原样保存/输出）
+random			==>  生成随即变量
+hashlib			==>  用于加密，md5/sha等
+tkinter			==>  GUI工具包接口模块
+functools		==>  高阶函数
+tarfile			==>	 压缩与解压缩模块
+gzip				==>  gzip压缩模块
+re					==>  使用正则模块
+socket			==>  网络编程底层模块（tcp/udp套接字）
+pymysql			==>  mysql数据库模块
+sqlalchemy	==>  ORM对象映射，数据库模块
+urllib			==>  http模块
+requests		==>  http模块（爬虫）
+wget				==>  下载模块
+paramiko		==>  ssh模块
+email				==>  邮件模块
+smtplib			==>  邮件发送模块
+json				==>  json格式模块
+
+
