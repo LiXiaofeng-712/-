@@ -58,8 +58,8 @@ git commit -m "描述信息"
 搭建本地gitlab服务器
 安装docker容器，并下载gitlab_zh.tar镜像文件，导入
 docker load < gitlab_zh.tar 
-修改真迹ssh端口后，启动容器
-docker run -d -h gitlab --name gitlab -p 443:443 -p 80:80 -p 22:22 --restart always -v /srv/gitlab/config:/etc/gitlab -v /srv/gitlab/logs:/var/log/gitlab -v /srv/gitlab/data \ gitlab_zh:latest 
+修改真机ssh端口后，启动容器
+docker run -d -h gitlab --name gitlab -p 443:443 -p 80:80 -p 22:22 --restart always -v /srv/gitlab/config:/etc/gitlab -v /srv/gitlab/logs:/var/log/gitlab -v /srv/gitlab/data  gitlab_zh:latest 
 -d 后台运行
 -h 设置虚拟机的主机名
 --name 设置容器名
@@ -2968,7 +2968,7 @@ url = 'http://www.weather.com.cn/data/sk/101010100.html'
 
 
 #官方文档：https://www.zabbix.com/documentation/4.0/zh/manual
-zabbix api:
+zabbix api:	#zabbix应用程序接口
 http://192.168.4.2/zabbix/api_jsonrpc.php		#根据实际情况寻找此文件路径
 
 import requests
