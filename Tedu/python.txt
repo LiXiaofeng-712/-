@@ -3061,10 +3061,254 @@ https://mirrors.tuna.tsinghua.edu.cn/jenkins/updates/update-center.json
 可选插件 -> Git Parameter -> 直接安装 -> 安装完成后重启Jenkins(空闲时)
 
 
+CI/CD:
+一、程序员编写项目代码
+1、本地编写代码
+[root@room8pc16 day05]# mkdir /tmp/nsd1809
+[root@room8pc16 day05]# cd /tmp/nsd1809
+[root@room8pc16 nsd1809]# echo '<h1>Hello World!</h1>' > index.html
+2、加入git管理
+[root@room8pc16 nsd1809]# git init .   # 初始化
+[root@room8pc16 nsd1809]# git add .    # 将当前目录所有文件存入暂存区
+[root@room8pc16 nsd1809]# git commit -m "myproject 1.0"  # 存入版本库
+3、打标签
+[root@room8pc16 nsd1809]# git tag 1.0   # 将当前状态标记为1.0版本
+[root@room8pc16 nsd1809]# git tag    # 查看
+[root@room8pc16 nsd1809]# git tag -d 标签    # 删除本地标签
+4、继续开发，编写代码
+[root@room8pc16 nsd1809]# echo '<h2>新版本加入一行</h2>' >> index.html
+5、提交到版本库，并打标签
+[root@room8pc16 nsd1809]# git add .
+[root@room8pc16 nsd1809]# git commit -m "myproject 2.0"
+[root@room8pc16 nsd1809]# git tag 2.0
+
+二、推送代码到gitlab服务器
+1、配置gitlab
+群组Group：为每一个团队创建一个组
+项目Project：每个团队都可能创建多个软件项目
+成员Member：每个组都有多个成员，一个项目不一定需要所有成员参与
+
+创建一个名为devops的组，在该项目下创建名为nsd1809的项目。
+创建一个用户，配置该用户是nsd1809项目的主程序员。
+2、推送本地代码到服务器
+[root@room8pc16 nsd1809]# cd /tmp/nsd1809/
+[root@room8pc16 nsd1809]# git remote rename origin old-origin
+如果出现以下错误，忽略即可
+error: 不能重命名配置小节 'remote.origin' 到 'remote.old-origin'
+[root@room8pc16 nsd1809]# git remote add origin http://192.168.4.1/devops/nsd1809.git
+[root@room8pc16 nsd1809]# git push -u origin --all
+[root@room8pc16 nsd1809]# git push -u origin --tag
+
+三、jenkins拉取gitlab服务器上的代码
+1、创建一个freestyle自由风格的项目
+2、参数化构建过程 => git parameter =>
+ name: webver, default value: origin/master(origin仓库/master分支)
+=> 源码管理 git, Repository URL: http://192.168.4.1/devops/nsd1809.git
+如果jenkins服务器上没有git，需要yum install -y git =>
+Branch Specifier (blank for 'any'): $webver =>
+3、执行工程
+点击 Build with Parameters => 选择1.0 => 开始构建
+4、查看下载到的本地目录
+[root@node4 ~]# ls /var/lib/jenkins/workspace/
+myweb
+[root@node4 ~]# ls /var/lib/jenkins/workspace/myweb/
+index.html
+[root@node4 ~]# cat /var/lib/jenkins/workspace/myweb/index.html
+<h1>Hello World!</h1>
+5、调整项目，下载的软件放到子目录中
+点开jenkins的工程 => 左侧的“配置” =>    Additional Behaviours:
+checkout to a subdirectory : Local subdirectory for repo: myweb-$webver
+6、重新构建项目
+[root@node4 ~]# rm -rf /var/lib/jenkins/workspace/myweb/
+再次构建项目Build with Parameters
+[root@node4 ~]# ls /var/lib/jenkins/workspace/myweb/
+
+7、为了方便应用服务器到jenkins上下载软件包，在jenkins上安装apache
+[root@node4 ~]# yum install -y httpd
+[root@node4 ~]# systemctl start httpd
+[root@node4 ~]# systemctl enable httpd
+8、创建保存软件包的目录
+[root@node4 ~]# mkdir -pv /var/www/deploy/packages
+[root@node4 ~]# chown -R jenkins /var/www/deploy/
+9、修改jenkins工程
+将下载的软件放到/var/www/html/deploy/packages目录下，并压缩
+构建 => 增加构建步骤 => 执行shell
+appdir=/var/www/html/deploy
+cp -r myweb-$webver $appdir/packages/
+cd $appdir/packages/
+rm -rf myweb-$webver/.git
+tar czf myweb-$webver.tar.gz myweb-$webver
+md5sum myweb-$webver.tar.gz | awk '{print $1}' > myweb-$webver.tar.gz.md5
+rm -rf myweb-$webver
+
+10、重新构建
+
+11、生成当前版本和前一个版本的说明文件
+appdir=/var/www/html/deploy
+cp -r myweb-$webver $appdir/packages/
+cd $appdir/packages/
+rm -rf myweb-$webver/.git
+tar czf myweb-$webver.tar.gz myweb-$webver
+md5sum myweb-$webver.tar.gz | awk '{print $1}' > myweb-$webver.tar.gz.md5
+rm -rf myweb-$webver
+cd $appdir
+[ -f live_version ] && cat live_version > last_version
+echo $webver > live_version
+12、重新构建
+
+####################################
+git分支应用：
+[root@room8pc16 zzg_pypkgs]# git init /tmp/mygit
+[root@room8pc16 zzg_pypkgs]# cd /tmp/mygit
+[root@room8pc16 mygit]# cp /etc/hosts .
+[root@room8pc16 mygit]# git add .
+[root@room8pc16 mygit]# git commit -m "c1"
+[root@room8pc16 mygit]# cp /etc/issue .
+[root@room8pc16 mygit]# git add .
+[root@room8pc16 mygit]# git commit -m "c2"
+[root@room8pc16 mygit]# cp /etc/passwd .
+[root@room8pc16 mygit]# git add .
+[root@room8pc16 mygit]# git commit -m "c3"
+[root@room8pc16 mygit]# git branch   # 查看分支
+[root@room8pc16 mygit]# git branch b1   # 创建新分支b1
+[root@room8pc16 mygit]# git branch
+[root@room8pc16 mygit]# cp /etc/selinux/config .
+[root@room8pc16 mygit]# git add .
+[root@room8pc16 mygit]# git commit -m "c4"
+[root@room8pc16 mygit]# git checkout b1   # 切换到b1分支
+[root@room8pc16 mygit]# ls   # 工作区中没有config
+[root@room8pc16 mygit]# cp /root/anaconda-ks.cfg .
+[root@room8pc16 mygit]# git add .
+[root@room8pc16 mygit]# git commit -m "c5"
+[root@room8pc16 mygit]# git checkout master
+[root@room8pc16 mygit]# git merge b1 -m "c6"  # 将分支b1合并到master
+[root@room8pc16 mygit]# git branch -d b1  # 如果b1没有用了，可以删除
+#######################################
+
+四、在应用服务器上编写自动部署代码
+1、检查是否有新版本
+2、下载软件
+3、校验文件，检查下载的软件包是否损坏
+4、部署软件
 
 
+应用服务器目录规划：
+/var/www/download/: 存软件包和md5值
+/var/www/deploy/：存live_version和解压的软件包
+/var/www/html/nsd1809: deploy中最新版本目录的软链接
+
+##############################################################################
+
+Day06
+ansible
+1、安装
+[root@room8pc16 zzg_pypkgs]# cd ansible_pkg/
+[root@room8pc16 ansible_pkg]# pip3 install *
+如果安装过程中有报错，提示某些tar包没有安装上，可以pip3 install xxx.tar.gz
+单独安装，然后再执行pip3 install *
+[root@room8pc16 day07]# python3
+>>> import ansible
+2、创建工作目录
+[root@room8pc16 day07]# mkdir mykvm
+[root@room8pc16 day07]# cd mykvm
+3、创建配置文件
+[root@room8pc16 mykvm]# vim ansible.cfg
+[defaults]
+inventory = hosts
+remote_user = root
+4、创建主机清单文件
+[root@room8pc16 mykvm]# vim hosts
+[dbservers]
+node4.tedu.cn
+
+[webservers]
+node5.tedu.cn
+node6.tedu.cn
+5、配置名称解析
+[root@room8pc16 mykvm]# for i in {1..254}
+> do
+> echo -e "192.168.4.$i\tnode$i.tedu.cn\tnode$i" >> /etc/hosts
+> done
+6、收集主机密钥
+[root@room8pc16 mykvm]# ssh-keyscan node{4..6}.tedu.cn >> /root/.ssh/known_hosts
+7、测试
+[root@room8pc16 mykvm]# ansible all -m ping -k
 
 
+ansible执行任务：
+一、adhoc临时命令
+[root@room8pc16 mykvm]# ansible webservers -m shell -a "id root" -k
+
+二、playbook
+1、修改vim
+[root@room8pc16 mykvm]# vim ~/.vimrc
+autocmd FileType yaml setlocal sw=2 ts=2 et ai
+2、创建playbook，实现免密登陆
+[root@room8pc16 ~]# ansible-doc authorized_key
+[root@room8pc16 mykvm]# vim auth.yml
+---
+- name: configure authentication
+  hosts: all
+  tasks:
+    - name: upload public key
+      authorized_key:
+        user: root
+        state: present
+        key: "{{ lookup('file', '/root/.ssh/id_rsa.pub') }}"
+3、语法检查
+[root@room8pc16 mykvm]# ansible-playbook --syntax-check auth.yml
+[root@room8pc16 mykvm]# ansible-playbook auth.yml -k
+
+4、配置yum
+(1) [root@room8pc16 mykvm]# mkdir files
+[root@room8pc16 mykvm]# vim files/server.repo
+(2)[root@room8pc16 mykvm]# vim yum.yml
+---
+- name: upload yum config file
+  hosts: all
+  tasks:
+    - name: upload file
+      copy:
+        src: files/server.repo
+        dest: /etc/yum.repos.d/server.repo
+(3) 执行
+[root@room8pc16 mykvm]# ansible-playbook --syntax-check yum.yml
+[root@room8pc16 mykvm]# ansible-playbook yum.yml
+
+5、实现LAMP
+[root@room8pc16 mykvm]# vim lamp.yml
+---
+- name: configure db servers
+  hosts: dbservers
+  tasks:
+    - name: install db pkgs
+      yum:
+        name: mariadb-server
+        state: latest
+    - name: start db service
+      service:
+        name: mariadb
+        state: started
+        enabled: yes
+
+- name: configure web servers
+  hosts: webservers
+  tasks:
+    - name: install web pkgs
+      yum:
+        name: [httpd, php, php-mysql]
+        state: present
+    - name: start web service
+      service:
+        name: httpd
+        state: started
+        enabled: yes
+[root@room8pc16 mykvm]# ansible-playbook --syntax-check lamp.yml
+[root@room8pc16 mykvm]# ansible-playbook lamp.yml
+
+ansible手册
+https://docs.ansible.com/  => ansible documentation
+搜索python ap
 
 
 
@@ -3144,6 +3388,31 @@ Win2000和Win2003作为服务器操作系统，本身就具备一定的抵抗DDO
 5. 服务器前端加CDN中转(免费的有百度云加速、360网站卫士、加速乐、安全宝等)，如果资金充裕的话，可以购买高防的盾机，用于隐藏服务器真实IP，域名解析使用CDN的IP，所有解析的子域名都使用CDN的IP地址。此外，服务器上部署的其他域名也不能使用真实IP解析，全部都使用CDN来解析。
 另外，防止服务器对外传送信息泄漏IP地址，最常见的情况是，服务器不要使用发送邮件功能，因为邮件头会泄漏服务器的IP地址。如果非要发送邮件，可以通过第三方代理(例如sendcloud)发送，这样对外显示的IP是代理的IP地址。
 总之，只要服务器的真实IP不泄露，10G以下小流量DDOS的预防花不了多少钱，免费的CDN就可以应付得了。如果攻击流量超过20G，那么免费的CDN可能就顶不住了，需要购买一个高防的盾机来应付了，而服务器的真实IP同样需要隐藏
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
