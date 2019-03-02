@@ -3557,6 +3557,16 @@ HTML标记(标签、元素)：
 段落元素 => p
 div元素
 
+特殊字符显示：&le,&gt,&nbsp空格，hr分割线，br换行...
+字体修饰：b粗体，i斜体，u下划线，s删除线，sup字体向上放，sub字体向下放
+标题：hn（n：1～6）标题字体大小
+图片处理：<img src="car.jpg">	，可以是网络文件
+超连接：<a href="http://fanyi.sogou.com">搜狗翻译</a>
+锚点（页面调转）：<a href="#down">显示内容</a>
+表格：talbe>tr*4>td*3(TAB),快速创建4行3列的表格，td中的rowspan（合并行）colspan（合并列）
+列表：ul>li*4(TAB),四个无序的列表，默认实心圆点，ol>li*4(TAB)，4个有序的列表，默认数字排序
+表单及控件：form可以制作按钮连接表单
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -3663,6 +3673,114 @@ div元素
 </body>
 </html>
 ##########################################################################
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+    <!--下拉菜单选项-->
+    <form action="">
+        <select name="" id="">
+            <option value="linux">linux</option>
+            <option value="windows">windows</option>
+            <option value="python">python</option>
+        </select>
+        <textarea name="" id="" cols="30" rows="10"></textarea>
+        <input type="reset">
+    </form>
+
+
+    <a href="https://github.com/LiXiaofeng-712/NSD1809/tree/master/Tedu" target="_blank">git笔记</a>
+    <hr>
+    <!--多选按钮-->
+    <form action="https://www.baidu.com/s" target="_blank">
+        <label><input type="checkbox" name="wd" value="linux"> linux</label> <br>
+        <label><input type="checkbox" name="wd" value="windows"> windows</label> <br>
+        <label><input type="checkbox" name="wd" value="python"> python</label> <br>
+        <input type="submit" value="百度搜索">
+        <input type="reset" value="刷新">
+    </form>
+
+    <hr>
+    <!--单选按钮，按钮可以和文字一体-->
+    <form action="https://www.baidu.com/s" target="_blank">
+        <input type="radio" name="wd" value="linux"><label>linux</label> <br>
+        <label><input type="radio" name="wd" value="windows"> windows</label> <br>
+        <input type="radio" name="wd" id="py" value="python"><label for="py">python</label> <br>
+        <input type="submit" value="百度搜索"> <br>
+    </form>
+
+    <hr>
+    <!--隐藏密码-->
+    <form action="">
+        <label>用户名：</label><input type="text" placeholder="用户名">
+        <label>密码：</label><input type="password" placeholder="密码">
+    </form>
+    <hr>
+    <!--form表单-->
+    <!--action:是指提交数据给哪个网址。input的name=query：是提交数据时的变量
+    input文本框中的内容，是变量的值-->
+    <form action="https://www.sogo.com/web" target="_blank">
+        <input type="text" name="query">
+        <input type="submit" value="搜狗搜索">
+    </form>
+    <hr>
+    <!--制作一个搜索图片的按钮-->
+    <form action="http://image.baidu.com/search/index" target="_blank">
+        <input type="hidden" value="baiduimage" name="tn">  <!--隐藏字段-->
+        <input type="text" name="word">
+        <input type="submit" value="百度图片">
+    </form>
+    <hr>
+
+
+</body>
+</html>
+####################################################################
+
+Day02
+CSS特性：
+继承性：元素可以嵌套，下一级元素继承上一级元素的样式
+层叠性：元素可以从不同位置得到多种样式
+优先级：越靠近元素的样式越优先
+
+选择器：为谁设置样式（可以使用外部连接）
+元素选择器：html自带的标签
+*: 通用选择器，匹配所有标签(格式同下)
+类选择器：可以将一些元素放到一个分组中，统一为这个分组设置样式
+	<span class="cloud">达内</span>	声明一个自定义组名class="xxx"
+	另一个文件中定义样式
+	.cloud {font-weight:bold;color:red;}  使用.组名class="xxx"定义类选择器
+id选择器：id是某一元素在整个页面中的唯一标识
+	<h3 id="p1">这是3号标题</h3>
+	另一个文件中定义样式
+	#p1 {color:darkred;}	
+群组选择器：使用逗号间隔各个元素，统一定义样式(h2,h3...)
+伪类选择器：一般用于超连接，设置访问前、鼠标悬停，访问后的样式
+	<a href="http://www.baidu.com">百度</a>
+	另一个文件中定义样式
+	a:link{text-decoration:none}	超链接访问前的样式(去除下划线)
+	a:hover{} 鼠标停留是的样式
+	a:visited{} 访问后的样式
+一个元素可以有多个类：一个元素可以属于多个组，若相同属性，由样式表中class先后顺序决定
+	<p class="important">重要</p>
+	<p class="warning">警告</p>
+	<p class="important warning">及重要合警告</p>
+	另一个文件中定义样式（有相同属性，跟最后一个属性）
+	.important {
+		font-weight: bold;
+		color:red
+	}
+	.warning {
+		color:blue
+	}
+	
+	p .blue{}  在p元素中，属于blue类的内容<p>xxx<span class="blue">yyy</span></p>
+	p.blue{}  p标记，它的class是blue才生效<p class="blue">xxx</p>
+	
+
 
 
 
