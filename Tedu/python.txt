@@ -3534,8 +3534,135 @@ PY_BIN=$(which python3)
 # ansible-cmdb /tmp/out/ > /tmp/hosts.html
 # firefox /tmp/hosts.html
 
+python文件追踪：python -m trace --trace 文件
+###########################################################################################
 
+Devweb
+Day01
+web编程：
+前端：网页制作、DIV＋CSS、javascript
+后端：python/php/java/asp
 
+html语法+css(层叠样式表)
+bootstrap: twitter公司开源的前端框架
+
+HTML标记(标签、元素)：
+双标记：<html>...</html>
+单标记：<br>
+
+注释：ctrl + / 和  ctrl+shift+/
+
+块级元素：无论多少内容，必须独占一行
+标题元素 => h1 ... h6
+段落元素 => p
+div元素
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>我的测试页面</title>
+</head>
+<body>
+    <!--有序列表的使用，快速创建ol*2>li*4（Tab补全）-->
+    <ol type="a">  <!--默认是数字，type修改前方标志-->
+        <li>linux</li>
+        <li>debain</li>
+        <li>windows</li>
+        <li>unux</li>
+    </ol>
+    <ol type="I">
+        <li>linux</li>
+        <li>unux</li>
+        <li>debain</li>
+        <li>fedora</li>
+    </ol>
+    <hr>
+
+    <!--无序列表的使用-->
+    <ul type="square">  <!--默认是实心小圆，type修改前方图形标志-->
+        <li>linux</li>
+        <li>debain</li>
+        <li>windows</li>
+        <li>unux</li>
+    </ul>
+    <ul type="circle">  <!--空心圆-->
+        <li>linux</li>
+        <li>unux</li>
+        <li>debain</li>
+        <li>fedora</li>
+    </ul>
+    <hr>
+
+    <!--创建表格，快速创建table>tr*2>td*3（Tab补全）-->
+    <table border="30">
+        <tr>
+            <td>姓名</td>
+            <td>性别</td>
+            <td>城市</td>
+        </tr>
+        <tr>
+            <td rowspan="2">1</td>  <!--合并2行单元格为一格-->
+            <td colspan="2">1</td>  <!--合并2列单元格为一列-->
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>1</td>
+        </tr>
+    </table>
+    <hr>
+
+    <!--锚点，页面内调转位置-->
+    <a href="#down"><i>调转到底部</i></a>
+    <hr>
+
+    <!--超链接-->
+    <a href="http://fanyi.sogou.com">搜狗翻译</a>   <!--直接在当前页面打开-->
+    <a href="https://www.qq.com" target="_blank">   <!--blank表示在新窗口打开-->
+        <img src="car.jpg">
+    </a>
+    <hr>    <!--用一条横线分割-->
+
+    <!--插入图片-->
+    <img src="https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1551504785937&di=4600ffe459b0e4c4d457de2c51508b32&imgtype=0&src=http%3A%2F%2Fpic3.16pic.com%2F00%2F57%2F89%2F16pic_5789804_b.jpg">  <!--直接指向网站并设置宽度高度-->
+    <img src="car.jpg"> <!--本地图片-->
+    <hr>
+
+    <!--标题-->
+    <h1><b>这是一个标题！！！</b></h1>
+    <h2><i>这是一个标题！！！</i></h2>
+    <h3><u>这是一个标题！！！</u></h3>
+    <h4>这是一个标题！！！</h4>
+    <h5>这是一个标题！！！</h5>
+    <h6><s>这是一个标题！！！</s></h6>
+    <p>fasdsafasfsafd</p>
+    <div>safdsdfsdf</div>
+    <hr>
+
+    <!--字体修饰-->
+    <b>加粗</b>
+    <i>倾斜线</i>
+    <u>下划线</u>
+    <s>删除线</s>
+    2<sup>3</sup>&ne;9
+    log<sub>2</sub>
+    <hr>
+
+    <!--特殊符号显示-->
+    &le; 小于等于
+    &gt; 大于
+    &nbsp; 空格
+    <br> 换行
+    &copy; ©
+    &ddarr; ⇊
+    &uuarr; ⇈
+    &delta; δ
+    <hr id="down">
+    <a href="#"><i>返回顶部</i></a>
+
+</body>
+</html>
+##########################################################################
 
 
 

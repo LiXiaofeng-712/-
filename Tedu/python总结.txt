@@ -36,7 +36,7 @@ socket			==>  网络编程底层模块（tcp/udp套接字）
 pymysql			==>  mysql数据库模块
 sqlalchemy	==>  ORM对象映射，数据库模块
 urllib			==>  http模块
-requests		==>  http高层模块（爬虫）
+requests		==>  http模块（爬虫）
 wget				==>  下载模块
 paramiko		==>  ssh模块
 email				==>  邮件模块
