@@ -3780,6 +3780,75 @@ id选择器：id是某一元素在整个页面中的唯一标识
 	p .blue{}  在p元素中，属于blue类的内容<p>xxx<span class="blue">yyy</span></p>
 	p.blue{}  p标记，它的class是blue才生效<p class="blue">xxx</p>
 	
+颜色：
+1、单词
+2、rgb颜色：rgb(10进制数)  red/green/blue
+每种颜色都采用0-255之间的一个数字，值越大，表示这个颜色越亮，值小表示暗
+如果三种颜色明暗程度一样，就是灰色
+3、rgb颜色：#16进制
+
+盒子模型	
+padding: 10px;      内边距
+margin: 20px;       外边距(0 auto自动居中)
+border: 5px solid black;    边框
+float: left/right		向左/右覆盖，用于多行居中
+margin-left:400px		向左移动400px
+
+bootstrap:    http://www.bootcss.com/
+twitter公司的开源前端框架，可以简单理解为它就是一个大样式表
+将前一个班的样式表文件复制过来
+# cp -r ../../../nsd1808/devweb/day03/static/ .
+# tree static/
+static/
+├── css    # 样式表文件目录
+│   ├── bootstrap.css
+│   ├── bootstrap.css.map
+│   ├── bootstrap.min.css
+│   ├── bootstrap.min.css.map
+│   ├── bootstrap-theme.css
+│   ├── bootstrap-theme.css.map
+│   ├── bootstrap-theme.min.css
+│   └── bootstrap-theme.min.css.map
+├── fonts   # 字体文件目录
+│   ├── CabinSketch-Bold.ttf
+│   ├── glyphicons-halflings-regular.eot
+│   ├── glyphicons-halflings-regular.svg
+│   ├── glyphicons-halflings-regular.ttf
+│   ├── glyphicons-halflings-regular.woff
+│   └── glyphicons-halflings-regular.woff2
+├── imgs    # 图片目录
+│   ├── banner.jpg
+│   ├── first.jpg
+│   ├── heart.jpeg
+│   ├── html_css.jpeg
+│   ├── linux.jpg
+│   ├── second.jpg
+│   └── third.jpg
+└── js      # javascript目录
+    ├── bootstrap.js
+    ├── bootstrap.min.js
+    ├── jquery.min.js
+    └── npm.js
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
