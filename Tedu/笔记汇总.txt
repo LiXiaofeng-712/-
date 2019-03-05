@@ -739,7 +739,7 @@ successfully 成功
 
 硬盘划分最小空间单位：默认512字节
 卷组划分最小空间单位：PE 默认4M（4的倍数）
-	新增的卷组修改PE大小：vgcreate -s PE大小 -n 卷组名 硬盘路径
+	新增的卷组修改PE大小：vgcreate -s PE大小 卷组名 硬盘路径
 	已存在的卷组修改PE大小：vgchange -s PE大小 卷组名
 	创建逻辑卷的时候指定PE个数：lvcreate -l PE个数 -n 逻辑卷名 卷组名
 	
