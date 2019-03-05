@@ -3829,6 +3829,209 @@ static/
     ├── bootstrap.min.js
     ├── jquery.min.js
     └── npm.js
+####################################################################
+
+Day04
+django: 是一个web框架，用于编写网站程序
+MTV模式：
+M: Model模型 对应数据库
+T: Template模板 对应html页面
+V: View视图 对应相关的函数
+
+URLConf: 路由系统 => 将URL和相应的函数关联
+
+python虚拟环境：创建一个文件夹，将python环境限制到这个文件夹中，安装模块等
+都是安装到了这个文件夹。
+1、创建虚拟环境
+[root@room8pc16 day04]# python3 -m venv /opt/djenv
+2、激活虚拟环境
+[root@room8pc16 day04]# source /opt/djenv/bin/activate
+3、现在的虚拟环境，运行python，默认就是python3
+4、在虚拟环境中，安装django
+(djenv) [root@room8pc16 zzg_pypkgs]# cd dj_pkgs/
+(djenv) [root@room8pc16 dj_pkgs]# pip install *
+(djenv) [root@room8pc16 dj_pkgs]# python
+>>> import django
+>>> django.__version__
+'1.11.6'
+
+
+django项目可以分成很多小的应用，每个小的应用由一或几个人负责。
+也就是说django项目是由多个应用构成的。
+1、创建项目
+(djenv) [root@room8pc16 day04]# django-admin startproject mysite
+(djenv) [root@room8pc16 day04]# tree mysite/
+mysite/
+├── manage.py         # 管理项目的脚本文件
+└── mysite
+    ├── __init__.py   # 使目录成为包
+    ├── settings.py   # 项目配置文件
+    ├── urls.py       # 路由系统文件，程序入口
+    └── wsgi.py       # 部署django项目时需要的文件
+
+1 directory, 5 files
+2、pycharm配置
+(1) 将解释器改为虚拟环境的解释器
+File -> Settings -> Project -> Project Interpreter ->点击右侧的齿轮图
+标 -> Add Local -> Existing Environment(把Make available to all
+projects 勾选) -> 点击三个图标 -> /opt/djenv/bin/python
+(2) 设置django的根路径
+File -> Settings -> Languages & Frameworks -> Django -> 启用支持，在
+根目录部分填入外层mysite，再选择settings.py的位置(mysite/settings)
+
+3、启动django虚拟服务器
+django内建了一个web服务器系统，可以展示django项目。
+(djenv) [root@room8pc16 mysite]# python manage.py runserver
+访问http://127.0.0.1:8000/
+4、配置django
+# mysite/settings.py
+ALLOWED_HOSTS = '*'   # 允许所有的客户端访问
+MIDDLEWARE = [
+    ... ...
+    # 'django.middleware.csrf.CsrfViewMiddleware',  # 关闭安全选项
+    ... ...
+]
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',   # 采用mysql数据库
+        'NAME': 'dj1809',
+        'USER': 'root',
+        'PASSWORD': 'tedu.cn',
+        'HOST': '127.0.0.1',
+        'PORT': '3306',
+    }
+}
+LANGUAGE_CODE = 'zh-hans'     # 改为中文语言
+TIME_ZONE = 'Asia/Shanghai'   # 时区
+USE_TZ = False
+5、配置数据库
+(djenv) [root@room8pc16 dj_pkgs]# mysql -uroot -ptedu.cn
+MariaDB [(none)]> CREATE DATABASE dj1809 DEFAULT CHARSET utf8;
+6、安装pymysql模块
+(djenv) [root@room8pc16 zzg_pypkgs]# cd pymysql_pkgs/
+(djenv) [root@room8pc16 pymysql_pkgs]# pip install *
+(python2连接mysql的模块是MySQLdb，但是python3没有，取而代之的是pymysql，
+但是django仍然寻找MySQLdb模块，需要写入以下代码，使pymysql像MySQLdb一样工作)
+# vim mysite/__init__.py
+import pymysql
+
+pymysql.install_as_MySQLdb()
+7、启动测试服务器，运行在0.0.0.0的80端口
+(djenv) [root@room8pc16 mysite]# python manage.py runserver 0:80
+
+8、生成django默认的数据库表
+(djenv) [root@room8pc16 mysite]# python manage.py makemigrations	#检查
+(djenv) [root@room8pc16 mysite]# python manage.py migrate		#生成数据库表
+9、创建超级用户
+(djenv) [root@room8pc16 mysite]# python manage.py createsuperuser	
+10、后台管理界面：http://127.0.0.1/admin
+
+建站流程：
+1、UI设计师设计页面风格（配色、文字）
+2、WEB前端设计师将UI设计师的图片变成WEB页面
+3、后台程序员编写网站后台程序
+4、做好的网站交给运维部门，放到web服务器上，对外提供服务
+
+创建应用：
+1、一个项目（如博客网站）可以由多个应用（发布文章、留言、投票）构成
+2、创建投票应用
+(djenv) [root@room8pc16 mysite]# python manage.py startapp polls
+3、将应用绑定到项目中
+# mysite/settings.py
+INSTALLED_APPS = [
+    ... ...
+    'polls',
+]
+4、投票规划
+(1) http://127.0.0.1/polls/   投票首页：列出所有的投票题目
+(2) http://127.0.0.1/polls/1/   1号投票题目的详情
+(3) http://127.0.0.1/polls/1/result/     1号投票题目的结果
+5、应用授权
+一个项目中有很多的应用，每个应用又拥有很多个URL。如果将每个URL对应的函数声明
+都写到项目的urls.py中，这个文件将会变得非常大，不易于管理。我们可以将每个应用
+的URL授权给该应用自行处理。
+# mysite/urls.py
+from django.conf.urls import url, include
+from django.contrib import admin
+
+urlpatterns = [
+    url(r'^admin/', admin.site.urls),
+    url(r'^polls/', include('polls.urls')),
+]
+说明：^polls/是正则表示式，从http://127.0.0.1/后面开始匹配
+# vim polls/urls.py
+from django.conf.urls import url
+
+urlpatterns = [
+]
+6、创建投票首页
+(1) url: 应用匹配URL的时候，从http://127.0.0.1/polls/后面开始匹配
+# polls/urls.py
+from django.conf.urls import url
+from . import views
+
+urlpatterns = [
+    url(r'^$', views.index, name='index'),
+]
+说明：from . import views是相对导入，表示在当前目录中导入views模块
+^$匹配空字符串，这个路径用views模块中的index函数去处理。name='index'是
+给http://127.0.0.1/polls/起个名，叫index
+(2) 编写视图函数
+from django.shortcuts import render
+
+def index(request):
+    return render(request, 'index.html')
+说明：函数index需要有一个参数，用户发来的请求会传递给这个参数。函数将会把
+index.html返回给用户
+(3) 创建模板文件index.html
+(djenv) [root@room8pc16 mysite]# mkdir polls/templates
+# polls/templates/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>投票首页</title>
+</head>
+<body>
+<h1>投票首页</h1>
+</body>
+</html>
+(4) 访问http://127.0.0.1/polls/将会看到index.html内容
+
+7、创建投票详情页
+(1) url
+# polls/urls.py
+    # url(r'^\d+/$', views.detail, name='detail'),
+    url(r'^(?P<question_id>\d+)/$', views.detail, name='detail'),
+说明：\d+匹配数字，然后把这个数字保存到question_id变量中，传递给detail函数
+(2) 视图函数
+# polls/views.py
+def detail(request, question_id):
+    return render(request, 'detail.html', {'question_id': question_id})
+说明：字典{'question_id': question_id}的key将作为变量传给detail.html
+模板，它的值是question_id的值。如http://127.0.0.1/1/，将会把1赋值给
+question_id，前端模板拿到的值就是{'question_id': 1}
+(3) 模板
+# polls/templates/detail.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>投票详情</title>
+</head>
+<body>
+<h1>{{ question_id }}号问题投票详情</h1>
+</body>
+</html>
+(4) 访问http://127.0.0.1/polls/数字/
+
+https://yiyibooks.cn/		#中文python文档
+https://yiyibooks.cn/xx/Django_1.11.6/intro/tutorial01.html
+
+
+
+
+
 
 
 
