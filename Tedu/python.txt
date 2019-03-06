@@ -4028,13 +4028,290 @@ question_id，前端模板拿到的值就是{'question_id': 1}
 https://yiyibooks.cn/		#中文python文档
 https://yiyibooks.cn/xx/Django_1.11.6/intro/tutorial01.html
 
+1.创建结果页
+(1) urls.py
+# polls/urls.py
+    url(r'(?P<question_id>\d+)/result/$', views.result, name='result'),
+(2) 函数
+# polls/views.py
+def result(request, question_id):
+    return render(request, 'result.html', {'question_id': question_id})
+(3) 模板
+# polls/templates/result.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>投票结果页</title>
+</head>
+<body>
+<h1>{{ question_id }}号问题的投票结果</h1>
+</body>
+</html>
 
 
+编写模型
+1、投票应用需要的表
+(1) 问题表：id/问题/发布时间
+(2) 选项表：id/选项/问题id/票数
+2、编写模型
+# polls/models.py
+from django.db import models
+
+class Question(models.Model):
+    question_text = models.CharField(max_length=200, unique=True, null=False)
+    pub_date = models.DateTimeField()
+
+    def __str__(self):
+        return self.question_text
+
+class Choice(models.Model):
+    choice_text = models.CharField(max_length=100)
+    votes = models.IntegerField()
+    q = models.ForeignKey(Question)
+
+    def __str__(self):
+        return "%s=>%s: %s" % (self.q, self.choice_text, self.votes)
+3、生成数据库的表
+(djenv) [root@room8pc16 mysite]# python manage.py makemigrations
+(djenv) [root@room8pc16 mysite]# python manage.py migrate
+4、分析表结构
+[root@room8pc16 mysite]# mysql -uroot -ptedu.cn
+MariaDB [(none)]> use dj1809;
+MariaDB [dj1809]> show tables;
+表名构成： polls_question/polls_choice => 应用名_类名
+MariaDB [dj1809]> desc polls_question;
+表中的字段：类变量。对于外键来说，需要给类变量加上_id。如选项表中的外键q，在
+数据库表中的名称是q_id。另外，没有声明主键，将会自动创建一个名为id的主键。
+5、修改表结构
+将选项表的票数加上默认值，并且将表中的q_id改为question_id
+class Choice(models.Model):
+    choice_text = models.CharField(max_length=100)
+    votes = models.IntegerField(default=0)
+    question = models.ForeignKey(Question)
+
+    def __str__(self):
+        return "%s=>%s: %s" % (self.question, self.choice_text, self.votes)
+(djenv) [root@room8pc16 mysite]# python manage.py makemigrations
+(djenv) [root@room8pc16 mysite]# python manage.py migrate
+在数据库中查看polls_choice的表结构。
+MariaDB [dj1809]> desc polls_question;
+6、将模型注册到后台
+# polls/admin.py
+from django.contrib import admin
+from .models import Question, Choice
+
+admin.site.register(Question)
+admin.site.register(Choice)
+说明：.models表示当前目录中的models模块
 
 
+操作数据库
+1、运行python shell(初始化django环境)
+(djenv) [root@room8pc16 mysite]# python manage.py shell
+2、导入问题
+>>> from polls.models import Question
+3、增加数据
+(1) 创建实例的方式
+>>> from django.utils import timezone   # 为了设置时间，导入时间工具
+>>> q1 = Question(question_text='你心仪的公司是哪家？', pub_date=timezone.now())
+>>> q1.save()
+>>> q1.id
+>>> q1.question_text
+>>> q1.pub_date
+(2) 通过类的管理器
+django为每个class都创建了一个名为objects的管理器，可以通过这个管理器进行
+增删改查
+>>> q2 = Question.objects.create(question_text='散伙饭去哪吃？', pub_date=timezone.now())
+
+4、为Choice增加数据
+(1) 创建实例
+>>> from polls.models import Choice
+>>> c1 = Choice(choice_text='达内', question=q1)
+>>> c1.save()
+(2) 通过管理器
+>>> c2 = Choice.objects.create(choice_text='阿里巴巴', question=q1)
+(3) 通过问题反向创建选项
+通过主外键约束，django自动为主键实例创建了一个名为“外键表_set”的管理器，通过
+这个管理器，可以直接创建外键表的实例
+>>> q1.choice_set.create(choice_text='小米')
+
+5、修改数据，只要通过实例，对它的属性重新赋值即可
+>>> q1.question_text = '你期待哪家公司给你发Offer？'
+>>> q1.save()
+6、删除记录
+>>> q1.delete()   # 默认也会将相关的选项一起删掉
+
+查询
+1、查询所有的内容
+>>> Question.objects.all()   # 返回所有问题实例组成的集合
+>>> for q in Question.objects.all():   # 取出集合中的每个实例
+...    print(q.question_text, q.pub_date)
+2、排序
+>>> Question.objects.order_by('pub_date')  # 返回所有问题实例组成的集合
+>>> for q in Question.objects.order_by('pub_date'):
+...     print(q.question_text, q.pub_date)
+>>> for q in Question.objects.order_by('-pub_date'):  # 降序排列
+...     print(q.question_text, q.pub_date)
+
+3、取出某一个问题的实例
+>>> q1 = Question.objects.get(id=1)
+>>> q1.question_text
+>>> q1.pub_date
+注意：get必须返回1个实例，如果返回值多了或少了，都会发生错误
+4、通过过滤方法获取问题实例组成的集合，该集合中可以有任意数目的实例(0到多)
+>>> qset1 = Question.objects.filter(id=1)  # 集合中只有一个问题实例
+>>> len(qset1)
+>>> qset2 = Question.objects.filter(id__gt=1)
+>>> len(qset2)
+>>> qset3 = Question.objects.filter(id__lt=1)
+>>> len(qset3)
+>>> for q in qset2:
+...     print(q.question_text, q.pub_date)
+
+5、过滤数据
+在django中，过滤条件采用双下划线表示属性。
+id=1实际上是id__exact=1的简写
+（1）数字
+大于：id__gt=1
+大于等于：id__gte=1
+小于：id__lt=1
+小于等于：id__lte=1
+（2）字符串
+字符串方法
+>>> question_text = '从达内结业后，你希望去哪个城市工作？'
+>>> question_text.startswith('从达内结业后')
+在django的过滤中，也是用双下划线表示方法
+>>> Question.objects.filter(question_text__startswith='从达内结业后')
+>>> Question.objects.filter(question_text__endswith='Offer？')
+(3) 时间
+>>> t1 = timezone.now()
+>>> t1.year
+>>> t1.month
+>>> t1.month == 3
+>>> t1.year >= 2019
+>>> Question.objects.filter(pub_date__year=2019)
+>>> Question.objects.filter(pub_date__year__gte=2019)
+>>> Question.objects.filter(pub_date__month=3)
+
+修改投票首页
+1、修改视图函数
+# polls/views.py
+from django.shortcuts import render
+from .models import Question
+
+def index(request):
+    questions = Question.objects.order_by('-pub_date')
+    return render(request, 'index.html', {'questions': questions})
+2、修改模板文件
+# polls/templates/index.html
+<body>
+<h1>投票首页</h1>
+{{ questions }}
+</body>
+3、在模板中使用循环
+# polls/templates/index.html
+<body>
+<h1>投票首页</h1>
+<ol>
+    {% for question in questions %}
+        <li>{{ question.question_text }} {{ question.pub_date }}</li>
+    {% endfor %}
+</ol>
+</body>
+4、为投票内容加入超链接
+<body>
+<h1>投票首页</h1>
+<ol>
+    {% for question in questions %}
+        <li>
+{#            <a href="/polls/{{ question.id }}/" target="_blank">#}
+            <a href="{% url 'detail' question_id=question.id %}" target="_blank">
+                {{ question.question_text }}
+            </a>
+            {{ question.pub_date }}
+        </li>
+    {% endfor %}
+</ol>
+</body>
+
+修改投票详情首页
+1、修改视图函数
+def detail(request, question_id):
+    question = Question.objects.get(id=question_id)
+    return render(request, 'detail.html', {'question': question})
+2、修改模板
+(1) 通过问题获取选项
+>>> q1 = Question.objects.get(id=1)
+>>> q1.choice_set.all()   # 通过问题反向获取所有选项实例构成的集合
+(2) 修改模板
+# detail.html
+<body>
+<h1>{{ question.id }}号问题投票详情</h1>
+<h2>{{ question.question_text }}</h2>
+<ol>
+    {% for choice in question.choice_set.all %}
+        <li>{{ choice.choice_text }}</li>
+    {% endfor %}
+</ol>
+</body>
+(3) 在模板中使用判断，如果有选项列出选项，没有选项显示尚无选项
+<body>
+<h1>{{ question.id }}号问题投票详情</h1>
+<h2>{{ question.question_text }}</h2>
+{% if question.choice_set.all %}   {% comment %}如果选项集不是空的{% endcomment %}
+    <ol>
+        {% for choice in question.choice_set.all %}
+            <li>{{ choice.choice_text }}</li>
+        {% endfor %}
+    </ol>
+{% else %}
+    <h3>尚无选项</h3>
+{% endif %}
+</body>
 
 
+django:
+运行原理：MTV模式
+客户端访问通过urlconf连接django-->view视图中寻找对应函数-->
+Model对应的数据库中寻找数据-->将数据返回给template模块下的html页面--> 返回给客户端
+一、初始化python虚拟环境
+1、创建虚拟环境
+2、激活虚拟环境
+3、安装django
 
+二、django项目部署
+1、创建项目
+2、若用pycharm，修改pycharm配置（解释器，项目位置），无则跳过
+3、修改django的settings.py文件
+4、配置真实数据库（需安装pymysql模块）
+5、检查、生成数据库表
+6、创建用户
+
+三、django应用部署
+1、创建应用
+2、绑定应用到项目
+3、在项目中为应用授权
+
+
+四、部署一个投票应用
+1、定义投票首页
+2、定义视图函数
+3、创建模版目录和文件
+4、创建投票详情页同上
+
+五、编写模型（投票应用的表格）
+1、在模型中定义class类（类的变量就是表字段）
+2、真机生成数据库表
+3、将模型注册到后台，admin文件
+
+六、数据库的基本操作
+1、增删改查
+2、过滤（数字、字符串、时间）
+
+七、修改投票页
+1、修改视图函数（定义模型中的信息）
+2、修改html文件
 
 
 
