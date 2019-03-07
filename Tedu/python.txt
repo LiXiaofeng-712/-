@@ -4270,11 +4270,292 @@ def detail(request, question_id):
 {% endif %}
 </body>
 
+修改投票详情的模板，加入form表单，实现投票功能
+# detail.html
+<body>
+<h1>{{ question.id }}号问题投票详情</h1>
+<h2>{{ question.question_text }}</h2>
+{% if question.choice_set.all %}   {% comment %}如果选项集不是空的{% endcomment %}
+    <form action="" method="post">
+        {% for choice in question.choice_set.all %}
+            <div>
+                <label>
+                    <input type="radio" name="choice_id" value="{{ choice.id }}">
+                    {{ choice.choice_text }}
+                </label>
+            </div>
+        {% endfor %}
+        <input type="submit" value="投 票">
+    </form>
+{% else %}
+    <h3>尚无选项</h3>
+{% endif %}
+</body>
+
+
+加入投票功能
+1、在detail.html的表单部分，当点击投票的时候，就会把用户的选择交给一个URL，
+这个URL设置为http://x.x.x.x/polls/问题ID/vote/
+# urls.py
+    url(r'(?P<question_id>\d+)/vote/$', views.vote, name='vote'),
+
+2、为投标网址编写视图函数
+# views.py
+from django.shortcuts import render, redirect
+
+def vote(request, question_id):
+    choice_id = request.POST.get('choice_id')
+    question = Question.objects.get(id=question_id)
+    choice = question.choice_set.get(id=choice_id)
+    choice.votes += 1
+    choice.save()
+
+    return redirect('result', question_id=question_id)
+说明：如果使用render返回result.html，那么将会把用户请求request相关的信息(
+POST过来的数据)也再发给result.html，redirect重定向相当于是浏览器打开了一个
+新窗口，访问一个新链接，不会再传递表单提交过来的数据。
+3、在detail.html中加入action的目标地址
+{#    <form action="/polls/{{ question.id }}/vote/" method="post">#}
+    <form action="{% url 'vote' question_id=question.id %}" method="post">
+
+
+结果页面
+1、修改视图，将具体的问题传给模板
+# views.py
+def result(request, question_id):
+    question = Question.objects.get(id=question_id)
+    return render(request, 'result.html', {'question': question})
+2、修改模板，显示问题选项的得票
+# result.html
+<body>
+<h1>{{ question.id }}号问题的投票结果</h1>
+<table border="1px">
+    <tr>
+        <td colspan="2">{{ question.question_text }}</td>
+    </tr>
+    {% for choice in question.choice_set.all %}
+        <tr>
+            <td>{{ choice.choice_text }}</td>
+            <td>{{ choice.votes }}</td>
+        </tr>
+    {% endfor %}
+</table>
+
+
+引入bootstrap
+1、django为静态文件(图片、JS、CSS)设置了专门的工作目录：应用目录下的static
+(djenv) [root@room8pc16 mysite]# cp -r ../../day03/static/ polls/
+2、修改index.html，引入bootstrap
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>投票首页</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+</head>
+
+设计首页
+1、分成上中下三个部分
+上面采用轮播图，中间是问题信息，底部是友情链接等
+# index.html
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>投票首页</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+
+</head>
+<body>
+<div class="container h4">
+    <div id="linux-carousel" class="carousel slide">
+        <ol class="carousel-indicators">
+            <li class="active" data-target="#linux-carousel" data-slide-to="0"></li>
+            <li data-target="#linux-carousel" data-slide-to="1"></li>
+            <li data-target="#linux-carousel" data-slide-to="2"></li>
+        </ol>
+        <div class="carousel-inner">
+            <div class="item active">
+                <a href="http://www.sogou.com" target="_blank">
+                    <img src="{% static 'imgs/first.jpg' %}">
+                </a>
+            </div>
+            <div class="item">
+                <img src="{% static 'imgs/second.jpg' %}">
+            </div>
+            <div class="item">
+                <img src="{% static 'imgs/third.jpg' %}">
+            </div>
+        </div>
+        <a href="#linux-carousel" data-slide="prev" class="carousel-control left">
+            <span class="glyphicon glyphicon-chevron-left"></span>
+        </a>
+        <a href="#linux-carousel" data-slide="next" class="carousel-control right">
+            <span class="glyphicon glyphicon-chevron-right"></span>
+        </a>
+    </div>
+    <div class="main">
+        <h1 class="text-center text-warning" style="margin-bottom: 30px">投票首页</h1>
+        <ol>
+            {% for question in questions %}
+                <li>
+                    <a href="{% url 'detail' question_id=question.id %}" target="_blank">
+                        {{ question.question_text }}
+                    </a>
+                    {{ question.pub_date }}
+                </li>
+            {% endfor %}
+        </ol>
+    </div>
+    <div class="footer text-center" style="margin-top: 50px">
+        <a href="#">达内云计算学院</a> NSD1809
+    </div>
+</div>
+
+<script src="{% static 'js/jquery.min.js' %}"></script>
+<script src="{% static 'js/bootstrap.min.js' %}"></script>
+<script type="text/javascript">
+    $('#linux-carousel').carousel({
+        interval : 3000
+    });
+</script>
+</body>
+</html>
+
+
+模板继承
+1、如果有很多页面希望使用相同的设计风格，可以先制作基础模板页面。其他页面就
+可以基于基础页面，进行继承。
+2、把各个页面共性的内容放到基础页面中，不同的内容，先使用{% block %}进行占位
+3、在其他页面中，继承可以把共性内容获得，个性内容单独设置
+4、将index.html复制一份，起名为base.html
+5、在base.html中，把个性内容删除，并用block占位
+个性内容是title标签和div.main中的部分
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+</head>
+<body>
+<div class="container h4">
+    <div id="linux-carousel" class="carousel slide">
+        <ol class="carousel-indicators">
+            <li class="active" data-target="#linux-carousel" data-slide-to="0"></li>
+            <li data-target="#linux-carousel" data-slide-to="1"></li>
+            <li data-target="#linux-carousel" data-slide-to="2"></li>
+        </ol>
+        <div class="carousel-inner">
+            <div class="item active">
+                <a href="http://www.sogou.com" target="_blank">
+                    <img src="{% static 'imgs/first.jpg' %}">
+                </a>
+            </div>
+            <div class="item">
+                <img src="{% static 'imgs/second.jpg' %}">
+            </div>
+            <div class="item">
+                <img src="{% static 'imgs/third.jpg' %}">
+            </div>
+        </div>
+        <a href="#linux-carousel" data-slide="prev" class="carousel-control left">
+            <span class="glyphicon glyphicon-chevron-left"></span>
+        </a>
+        <a href="#linux-carousel" data-slide="next" class="carousel-control right">
+            <span class="glyphicon glyphicon-chevron-right"></span>
+        </a>
+    </div>
+    <div class="main">{% block content %}{% endblock %}</div>
+    <div class="footer text-center" style="margin-top: 50px">
+        <a href="#">达内云计算学院</a> NSD1809
+    </div>
+</div>
+
+<script src="{% static 'js/jquery.min.js' %}"></script>
+<script src="{% static 'js/bootstrap.min.js' %}"></script>
+<script type="text/javascript">
+    $('#linux-carousel').carousel({
+        interval : 3000
+    });
+</script>
+</body>
+</html>
+6、修改index.html首页模板：继承于base.html，共性内容删除，因为已经在base.html
+中了，个性内容写到block。
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}投票首页{% endblock %}
+{% block content %}
+<h1 class="text-center text-warning" style="margin-bottom: 30px">投票首页</h1>
+<ol>
+    {% for question in questions %}
+        <li>
+            <a href="{% url 'detail' question_id=question.id %}" target="_blank">
+                {{ question.question_text }}
+            </a>
+            {{ question.pub_date }}
+        </li>
+    {% endfor %}
+</ol>
+{% endblock %}
+7、采用与index.html同样的方式修改detail.html和result.html
+# detail.html
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}投票详情{% endblock %}
+{% block content %}
+<h1 class="text-center text-warning" style="margin-bottom: 30px">{{ question.id }}号问题投票详情</h1>
+<h3>{{ question.question_text }}</h3>
+{% if question.choice_set.all %}
+    <form action="{% url 'vote' question_id=question.id %}" method="post">
+        {% for choice in question.choice_set.all %}
+            <div class="radio form-group">
+                <label>
+                    <input type="radio" name="choice_id" value="{{ choice.id }}">
+                    {{ choice.choice_text }}
+                </label>
+            </div>
+        {% endfor %}
+        <div class="form-group">
+            <input class="btn btn-primary" type="submit" value="投 票">
+        </div>
+    </form>
+{% else %}
+    <h3>尚无选项</h3>
+{% endif %}
+{% endblock %}
+
+
+# result.html
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}投票结果页{% endblock %}
+{% block content %}
+<h1 class="text-center text-warning" style="margin-bottom: 30px">{{ question.id }}号问题的投票结果</h1>
+<table class="table table-striped table-hover">
+    <tr class="info">
+        <td colspan="2">{{ question.question_text }}</td>
+    </tr>
+    {% for choice in question.choice_set.all %}
+        <tr>
+            <td>{{ choice.choice_text }}</td>
+            <td>{{ choice.votes }}</td>
+        </tr>
+    {% endfor %}
+</table>
+{% endblock %}
 
 django:
 运行原理：MTV模式
 客户端访问通过urlconf连接django-->view视图中寻找对应函数-->
-Model对应的数据库中寻找数据-->将数据返回给template模块下的html页面--> 返回给客户端
+Model对应的数据库中寻找数据-->返回给view视图-->交给template模块下的html页面--> 返回给客户端
 一、初始化python虚拟环境
 1、创建虚拟环境
 2、激活虚拟环境
@@ -4313,7 +4594,100 @@ Model对应的数据库中寻找数据-->将数据返回给template模块下的h
 1、修改视图函数（定义模型中的信息）
 2、修改html文件
 
+#######################################################################################
+创建博客应用
+一、创建应用
+1、生成应用目录
+(djenv) [root@room8pc16 mysite]# python3 manage.py startapp blog
+2、将应用绑定到项目
+# mysite/settings.py
+INSTALLED_APPS = [
+    ... ...
+    'polls',
+    'blog',
+]
+3、授权，以http://x.x.x.x/blog/开头的网址，交给blog应用处理
+# mysite/urls.py
+    url(r'^blog/', include('blog.urls')),
+# vim blog/urls.py
+from django.conf.urls import url
+urlpatterns = [
+]
+二、编写应用
+1、页面规划
+http://x.x.x.x/blog/   -> 博客首页，只列出每篇文章的摘要信息
+http://x.x.x.x/blog/1/  -> 1号文章的详情页面
+2、规划数据库
+一张表，存储博客文章，需要的字段：标题、发布时间、正文
+3、编写模型
+# blog/models.py
+from django.db import models
 
+class Blog(models.Model):
+    title = models.CharField(max_length=100)
+    pub_date = models.DateTimeField(auto_now_add=True)
+    text = models.TextField()
+
+    def __str__(self):
+        return self.title
+(djenv) [root@room8pc16 mysite]# python manage.py makemigrations
+(djenv) [root@room8pc16 mysite]# python manage.py migrate
+4、把博客模型注册到后台
+# blog/admin.py
+from django.contrib import admin
+from .models import Blog
+
+admin.site.register(Blog)
+访问后台http://127.0.0.1/admin，添加一些博客文章
+5、编写博客首页
+(1) blog/urls.py
+    url(r'^$', views.index, name='blog_index'),
+(2) blog/views.py
+from django.shortcuts import render
+from .models import Blog
+
+def index(request):
+    blogs = Blog.objects.order_by('-pub_date')
+    return render(request, 'blog_index.html', {'blogs': blogs})
+(3) # mkdir blog/templates/
+# blog/templates/blog_index.html
+<body>
+{% for blog in blogs %}
+    <h4>{{ blog.title }}</h4>
+    <p>{{ blog.pub_date }}</p>
+    <p>{{ blog.text }}</p>
+{% endfor %}
+</body>
+(4) 修改前端模板，文章内容只显示一部分
+修改博客正文这一行为如下格式：只显示20个单词
+    <p>{{ blog.text | truncatewords:20 }}</p>
+
+6、文章详情页
+(1) urls.py
+    url(r'^(?P<article_id>\d+)/$', views.article, name='article'),
+(2) views.py
+def article(request, article_id):
+    art = Blog.objects.get(id=article_id)
+    return render(request, 'article.html', {'art': art})
+(3) blog/templates/article.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>文章详情</title>
+</head>
+<body>
+<h3>{{ art.title }}</h3>
+<p>{{ art.pub_date }}</p>
+<p>{{ art.text | linebreaks }}</p>
+</body>
+</html>
+(4) 修改首页链接
+    <h4>
+        <a href="{% url 'article' article_id=blog.id %}" target="_blank">
+            {{ blog.title }}
+        </a>
+    </h4>
 
 
 
