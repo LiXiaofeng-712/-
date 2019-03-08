@@ -4689,6 +4689,418 @@ def article(request, article_id):
         </a>
     </h4>
 
+一、创建项目
+1、创建新的pycharm项目，解释器使用/opt/djenv/bin/python
+2、创建django项目
+# django-admin startproject myansible
+# cd myansible/
+3、配置pycharm，参见mysite项目
+4、创建一个名为webansi的应用
+# python manage.py startapp webansi
+5、配置项目
+# myansible/settings.py
+ALLOWED_HOSTS = '*'
+INSTALLED_APPS = [
+    ... ...
+    'webansi',
+]
+LANGUAGE_CODE = 'zh-hans'
+TIME_ZONE = 'Asia/Shanghai'
+USE_TZ = False
+6、安装必须的软件包
+(djenv) [root@room8pc16 zzg_pypkgs]# cd ansible_pkg/
+(djenv) [root@room8pc16 ansible_pkg]# pip install *
+# cd ansible-cmdb_pkgs/
+# pip install *
+# cd sqlalchemy_pkgs/
+# pip install *
+
+二、项目规划
+1、URL
+http://x.x.x.x/   => 列出所有的功能
+http://127.0.0.1/webansi/   => 列出所有主机的信息
+http://127.0.0.1/webansi/addhosts/   => 添加/显示主机(组)
+http://127.0.0.1/webansi/addmodules/  => 添加/显示模块和参数
+http://127.0.0.1/webansi/tasks/   => 在远程主机上执行任务
+2、授权
+把http://127.0.0.1/webansi/开头的URL授权给webansi应用
+# myansible/urls.py
+from django.conf.urls import url, include
+from django.contrib import admin
+
+urlpatterns = [
+    url(r'^admin/', admin.site.urls),
+    url(r'^webansi/', include('webansi.urls')),
+]
+# vim webansi/urls.py
+from django.conf.urls import url
+
+urlpatterns = [
+]
+
+3、规划Models模型
+HostGroup: group_name
+Host: hostname, ipaddr, group
+Module: module_name
+Argument: arg_text, module
+4、编写模型
+# webansi/models.py
+from django.db import models
+
+class HostGroup(models.Model):
+    group_name = models.CharField(max_length=50, null=False, unique=True)
+
+    def __str__(self):
+        return "组: %s" % self.group_name
+
+class Host(models.Model):
+    hostname = models.CharField(max_length=50, null=False, unique=True)
+    ipaddr = models.CharField(max_length=15, null=False, unique=True)
+    group = models.ForeignKey(HostGroup)
+
+    def __str__(self):
+        return "%s:%s=>%s" % (self.hostname, self.ipaddr, self.group)
+
+class Module(models.Model):
+    modlue_name = models.CharField(max_length=50, null=False, unique=True)
+
+    def __str__(self):
+        return "模块: %s" % self.modlue_name
+
+class Argument(models.Model):
+    arg_text = models.CharField(max_length=100, null=False, unique=True)
+    modlue = models.ForeignKey(Module)
+
+    def __str__(self):
+        return "%s=>%s" % (self.modlue, self.arg_text)
+5、生成数据库
+(djenv) [root@room8pc16 myansible]# python manage.py makemigrations
+# python manage.py migrate
+当前项目使用的是文件型数据库，在manage.py所在目录将会生成db.sqlite3文件，这
+个文件是一个数据库
+# sqlite3 db.sqlite3
+sqlite> .tables   # 查看所有的表
+sqlite> .schema webansi_hostgroup   # 表结构
+sqlite> .schema webansi_host
+
+6、将模型注册到后台
+# webansi/admin.py
+from django.contrib import admin
+from .models import HostGroup, Host, Module, Argument
+
+for item in [HostGroup, Host, Module, Argument]:
+    admin.site.register(item)
+7、创建管理员用户
+# python manage.py createsuperuser
+8、启动开发服务器
+# python manage.py runserver 0:80
+http://127.0.0.1/admin/
+9、进入后台，创建主机组和主机
+dbservers
+node4.tedu.cn  192.168.4.4
+webservers
+node5.teud.cn  192.168.4.5
+node6.teud.cn  192.168.4.6
+
+
+
+三、配置ansible
+1、在manage.py所在的目录下，创建ansible的工作目录
+# mkdir ansi_cfg
+2、创建ansible的配置文件
+# cd ansi_cfg
+# vim ansible.cfg
+[defaults]
+inventory = dhosts.py    # 主机清单文件是python脚本
+remote_user = root
+
+3、编写dhosts.py文件: 必须是可以直接运行的
+该文件运行后，输出的数据是JSON格式，要求如下：
+{'dbservers': {'hosts': ['192.168.4.4']},
+ 'lvs': {'hosts': ['192.168.4.1']}}
+分析：
+整体上输出一个字典：{}
+外层字典的key是组名，value是字典。{'组': {}}
+内层字典的key是固定的字符串hosts，value是列表。{'组': {'hosts': []}}
+列表中的元素是主机的IP地址
+
+
+
+# touch ansi_cfg/dhosts.py
+# chmod +x ansi_cfg/dhosts.py
+# vim ansi_cfg/dhosts.py
+#!/opt/djenv/bin/python
+
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+import json
+
+engine = create_engine(
+    'sqlite:////var/ftp/nsd_2018/nsd1809/devweb/ansible_project/myansible/db.sqlite3'
+)
+Session = sessionmaker(bind=engine)
+Base = declarative_base()
+
+class HostGroup(Base):
+    __tablename__ = 'webansi_hostgroup'
+    id = Column(Integer, primary_key=True)
+    group_name = Column(String(50), nullable=False, unique=True)
+
+    def __str__(self):
+        return "组: %s" % self.group_name
+
+class Host(Base):
+    __tablename__ = 'webansi_host'
+    id = Column(Integer, primary_key=True)
+    hostname = Column(String(50), nullable=False, unique=True)
+    ipaddr = Column(String(15), nullable=False, unique=True)
+    group_id = Column(Integer, ForeignKey('webansi_hostgroup.id'))
+
+    def __str__(self):
+        return "%s: %s" % (self.hostname, self.ipaddr)
+
+if __name__ == '__main__':
+    session = Session()
+    qset = session.query(HostGroup.group_name, Host.ipaddr).join(Host)
+    # print(qset.all())
+    result = {}
+    for group, ip in qset:
+        if group not in result:  # group=dbservers
+            result[group] = {}   # {'dbservers': {}}
+            result[group]['hosts'] = []   # {'dbservers': {'hosts': []}}
+        result[group]['hosts'].append(ip)
+    print(json.dumps(result))
+(djenv) [root@room8pc16 ansi_cfg]# ./dhosts.py
+{"dbservers": {"hosts": ["192.168.4.4"]}, "webservers": {"hosts": ["192.168.4.5", "192.168.4.6"]}}
+(djenv) [root@room8pc16 ansi_cfg]# ansible all -m ping
+
+
+
+实现项目首页http://127.0.0.1/
+1、配置url
+因为这是整个项目的首页，不是应用的，所以需要在项目的urls.py中配置
+# myansible/urls.py
+from django.conf.urls import url, include
+from django.contrib import admin
+from webansi import views
+
+urlpatterns = [
+    url(r'^$', views.mainpage, name='mainpage'),
+    url(r'^admin/', admin.site.urls),
+    url(r'^webansi/', include('webansi.urls')),
+]
+2、配置视图函数
+from django.shortcuts import render
+
+def mainpage(request):
+    return render(request, 'mainpage.html')
+3、创建模板文件
+# webansi/templates/mainpage.html
+4、引入bootstrap
+(1) 拷贝static目录到webansi目录下
+(2) 修改mainpage.html
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>项目首页</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+</head>
+<body>
+<div class="container h4">
+    <div id="linux-carousel" class="carousel slide">
+        <ol class="carousel-indicators">
+        <li class="active" data-target="#linux-carousel" data-slide-to="0"></li>
+        <li data-target="#linux-carousel" data-slide-to="1"></li>
+        <li data-target="#linux-carousel" data-slide-to="2"></li>
+    </ol>
+        <div class="carousel-inner">
+        <div class="item active">
+            <a href="http://www.sogou.com" target="_blank">
+                <img src="{% static 'imgs/first.jpg' %}">
+            </a>
+        </div>
+        <div class="item">
+            <img src="{% static 'imgs/second.jpg' %}">
+        </div>
+        <div class="item">
+            <img src="{% static 'imgs/third.jpg' %}">
+        </div>
+        <a href="#linux-carousel" data-slide="prev" class="carousel-control left">
+            <span class="glyphicon glyphicon-chevron-left"></span>
+        </a>
+        <a href="#linux-carousel" data-slide="next" class="carousel-control right">
+            <span class="glyphicon glyphicon-chevron-right"></span>
+        </a>
+    </div>
+    </div>
+    <div class="main" style="margin-top: 10px; margin-bottom: 50px">
+        <div class="row">
+            <div class="col-sm-3 text-center">
+                <a href="#">
+                    <img width="150px" src="{% static 'imgs/linux.jpg' %}"><br>
+                    主机信息
+                </a>
+            </div>
+            <div class="col-sm-3 text-center">
+                <a href="#">
+                    <img width="150px" src="{% static 'imgs/linux.jpg' %}"><br>
+                    添加主机
+                </a>
+            </div>
+            <div class="col-sm-3 text-center">
+                <a href="#">
+                    <img width="150px" src="{% static 'imgs/linux.jpg' %}"><br>
+                    添加模块
+                </a>
+            </div>
+            <div class="col-sm-3 text-center">
+                <a href="#">
+                    <img width="150px" src="{% static 'imgs/linux.jpg' %}"><br>
+                    执行任务
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="footer text-center">
+        <a href="#">达内云计算学院</a> 客服电话：400-111-8989 邮箱：admin@tedu.cn
+    </div>
+</div>
+<script src="{% static 'js/jquery.min.js' %}"></script>
+<script src="{% static 'js/bootstrap.min.js' %}"></script>
+<script type="text/javascript">
+    $('#linux-carousel').carousel({
+        interval : 3000
+    });
+</script>
+</body>
+</html>
+
+5、配置模板继承
+(1) 将mainpage.html拷贝一份，名为base.html
+(2) 在base.html中将个性部分(标题、main)删除，用block替代。
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title%}{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+</head>
+<body>
+<div class="container h4">
+    <div id="linux-carousel" class="carousel slide">
+        <ol class="carousel-indicators">
+        <li class="active" data-target="#linux-carousel" data-slide-to="0"></li>
+        <li data-target="#linux-carousel" data-slide-to="1"></li>
+        <li data-target="#linux-carousel" data-slide-to="2"></li>
+    </ol>
+        <div class="carousel-inner">
+        <div class="item active">
+            <a href="http://www.sogou.com" target="_blank">
+                <img src="{% static 'imgs/first.jpg' %}">
+            </a>
+        </div>
+        <div class="item">
+            <img src="{% static 'imgs/second.jpg' %}">
+        </div>
+        <div class="item">
+            <img src="{% static 'imgs/third.jpg' %}">
+        </div>
+        <a href="#linux-carousel" data-slide="prev" class="carousel-control left">
+            <span class="glyphicon glyphicon-chevron-left"></span>
+        </a>
+        <a href="#linux-carousel" data-slide="next" class="carousel-control right">
+            <span class="glyphicon glyphicon-chevron-right"></span>
+        </a>
+    </div>
+    </div>
+    <div class="main" style="margin-top: 10px; margin-bottom: 50px">
+        {% block content %}{% endblock %}
+    </div>
+    <div class="footer text-center">
+        <a href="#">达内云计算学院</a> 客服电话：400-111-8989 邮箱：admin@tedu.cn
+    </div>
+</div>
+<script src="{% static 'js/jquery.min.js' %}"></script>
+<script src="{% static 'js/bootstrap.min.js' %}"></script>
+<script type="text/javascript">
+    $('#linux-carousel').carousel({
+        interval : 3000
+    });
+</script>
+</body>
+</html>
+(3) mainpage使用继承的方式
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}项目首页{% endblock %}
+{% block content %}
+    <div class="row">
+        <div class="col-sm-3 text-center">
+            <a href="#">
+                <img width="150px" src="{% static 'imgs/linux.jpg' %}"><br>
+                主机信息
+            </a>
+        </div>
+        <div class="col-sm-3 text-center">
+            <a href="#">
+                <img width="150px" src="{% static 'imgs/linux.jpg' %}"><br>
+                添加主机
+            </a>
+        </div>
+        <div class="col-sm-3 text-center">
+            <a href="#">
+                <img width="150px" src="{% static 'imgs/linux.jpg' %}"><br>
+                添加模块
+            </a>
+        </div>
+        <div class="col-sm-3 text-center">
+            <a href="#">
+                <img width="150px" src="{% static 'imgs/linux.jpg' %}"><br>
+                执行任务
+            </a>
+        </div>
+    </div>
+{% endblock %}
+
+
+制作主机信息页
+1、通过ansible-cmdb生成主机信息
+# cd ansi_cfg/
+# ansible all -m setup --tree out
+# ansible-cmdb out/ > ../webansi/templates/index.html
+2、url
+# webansi/urls.py
+from django.conf.urls import url
+from . import views
+
+urlpatterns = [
+    url(r'^$', views.index, name='index'),
+]
+3、views
+# webansi/views.py
+def index(request):
+    return render(request, 'index.html')
+4、修改mainpage.html中超链接
+            <a href="{% url 'index' %}" target="_blank">
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
