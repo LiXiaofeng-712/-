@@ -5089,35 +5089,270 @@ def index(request):
 4、修改mainpage.html中超链接
             <a href="{% url 'index' %}" target="_blank">
 
+######################################################################
+
+Day08
+编写添加主机页面
+1、url
+# webansi/urls.py
+    url(r'^addhosts/$', views.addhosts, name='addhosts'),
+2、视图函数
+# webansi/views.py
+from .models import HostGroup
+def addhosts(request):
+    groups = HostGroup.objects.all()
+    return render(request, 'addhosts.html', {'groups': groups})
+3、模板
+# webansi/templates/addhosts.html
+{% extends 'base.html' %}
+{% block title %}添加主机{% endblock %}
+{% block content %}
+    <form action="" class="form-inline" method="post">
+        <div class="form-group">
+            <label>主机名：</label>
+            <input class="form-control" type="text" name="hostname">
+        </div>
+        <div class="form-group">
+                <label>IP：</label>
+                <input class="form-control" type="text" name="ip">
+        </div>
+        <div class="form-group">
+            <label>主机组：</label>
+            <input class="form-control" type="text" name="group">
+        </div>
+        <div class="form-group">
+            <input class="btn btn-primary" type="submit" value="添 加">
+        </div>
+    </form>
+    <hr>
+    <table class="table table-striped table-bordered table-hover">
+        <tr class="info">
+            <td>主机组</td>
+            <td>主机</td>
+        </tr>
+        {% for group in groups %}
+            <tr>
+                <td>{{ group.group_name }}</td>
+                <td>
+                    <ul class="list-unstyled">
+                        {% for host in group.host_set.all %}
+                            <li>{{ host.hostname }}: {{ host.ipaddr }}</li>
+                        {% endfor %}
+                    </ul>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+{% endblock %}
+
+4、修改首页超链接
+            <a href="{% url 'addhosts' %}" target="_blank">
+5、完善视图函数
+def addhosts(request):
+    if request.method == 'POST':
+        hostname = request.POST.get('hostname').strip()
+        ip = request.POST.get('ip').strip()
+        group_name = request.POST.get('group').strip()
+        if group_name:
+            # get_or_create返回元组(组实例, True|False)
+            group = HostGroup.objects.get_or_create(group_name=group_name)[0]
+            if hostname and ip:
+                group.host_set.get_or_create(hostname=hostname, ipaddr=ip)
+
+    groups = HostGroup.objects.all()
+    return render(request, 'addhosts.html', {'groups': groups})
+6、修改模板的form表单，以满足安全要求。在form下加入一行，如下：
+    <form action="" class="form-inline" method="post">
+    {% csrf_token %}
+
+
+编写添加模块页面
+1、url
+    url(r'^addmodules/$', views.addmodules, name='addmodules'),
+2、视图函数
+def addmodules(request):
+    modules = Module.objects.all()
+    return render(request, 'addmodules.html', {'modules': modules})
+3、模板
+# webansi/templates/addmodules.html
+{% extends 'base.html' %}
+{% block title %}添加模块{% endblock %}
+{% block content %}
+    <form action="" class="form-inline" method="post">
+    {% csrf_token %}
+        <div class="form-group">
+                <label>模块：</label>
+                <input class="form-control" type="text" name="module">
+        </div>
+        <div class="form-group">
+            <label>参数：</label>
+            <input class="form-control" type="text" name="args">
+        </div>
+        <div class="form-group">
+            <input class="btn btn-primary" type="submit" value="添 加">
+        </div>
+    </form>
+    <hr>
+    <table class="table table-striped table-bordered table-hover">
+        <tr class="info">
+            <td>模块</td>
+            <td>参数</td>
+        </tr>
+        {% for module in modules %}
+            <tr>
+                <td>{{ module.modlue_name }}</td>
+                <td>
+                    <ul class="list-unstyled">
+                        {% for args in module.argument_set.all %}
+                            <li>{{ args.arg_text }}</li>
+                        {% endfor %}
+                    </ul>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+{% endblock %}
+4、修改首页超链接
+            <a href="{% url 'addmodules' %}" target="_blank">
+5、完善视图函数
+def addmodules(request):
+    if request.method == 'POST':
+        module_name = request.POST.get('module').strip()
+        args = request.POST.get('args').strip()
+        if module_name:
+            module = Module.objects.get_or_create(module_name=module_name)[0]
+            if args:
+                module.argument_set.get_or_create(arg_text=args)
+
+    modules = Module.objects.all()
+    return render(request, 'addmodules.html', {'modules': modules})
+
+编写执行页面
+1、url
+# webansi/urls.py
+    url(r'^tasks/$', views.tasks, name='tasks'),
+2、视图函数
+# webansi/views.py
+def tasks(request):
+    groups = HostGroup.objects.all()
+    hosts = Host.objects.all()
+    modules = Module.objects.all()
+    context = {'groups': groups, 'hosts': hosts, 'modules': modules}
+    return render(request, 'tasks.html', context)
+3、模板
+# webansi/templates/addhosts.html
+{% extends 'base.html' %}
+{% block title %}执行任务{% endblock %}
+{% block content %}
+    <form action="" method="post">
+    {% csrf_token %}
+        <div class="form-group">
+            <ul class="nav nav-tabs">
+                <li class="active"><a href="#server" data-toggle="tab">主机</a></li>
+                <li><a href="#hostgroup" data-toggle="tab">主机组</a></li>
+            </ul>
+            <div class="tab-content" style="padding-top: 10px">
+                <div class="tab-pane active fade in" id="server">
+                    <select class="form-control" name="ip">
+                            <option value="">无</option>
+                        {% for host in hosts %}
+                            <option value="{{ host.ipaddr }}">{{ host.hostname }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="tab-pane fade" id="hostgroup">
+                    <select class="form-control" name="group_name">
+                            <option value="">无</option>
+                        {% for group in groups %}
+                            <option value="{{ group.group_name }}">{{ group.group_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        <table class="table table-striped table-bordered table-hover">
+        <tr class="info">
+            <td>模块</td>
+            <td>参数</td>
+        </tr>
+        {% for module in modules %}
+            <tr>
+                <td>
+                    <div class="radio">
+                        <label>
+                            <input type="radio" name="module_name" value="{{ module.modlue_name }}">
+                            {{ module.modlue_name }}
+                        </label>
+                    </div>
+                </td>
+                <td>
+                    <ul class="list-unstyled">
+                        {% for args in module.argument_set.all %}
+                            <li>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="args" value="{{ args.arg_text }}">
+                                        {{ args.arg_text }}
+                                    </label>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    <div class="form-group text-center">
+        <input class="btn btn-primary" type="submit" value="执 行">
+    </div>
+    </form>
+{% endblock %}
+
+4、修改主页超链接
+            <a href="{% url 'tasks' %}" target="_blank">
+
+5、完成执行任务的函数
+通过表单接收主机(组)、模块、参数。再把接收到的数据作为ansible的参数，进行调用
 
 
 
 
+为模块参数添加删除功能
+1、url
+http://x.x.x.x/webansi/del/参数id/
+    url(r'^del_args/(?P<args_id>\d+)/$', views.del_args, name='del_args'),
 
 
+2、视图函数
+def del_args(request, args_id):
+    args = Argument.objects.get(id=args_id)
+    args.delete()
+
+    return redirect('addmodules')
+
+3、修改模板，添加删除链接
+# addmodules.html
+            <tr>
+                <td>{{ module.modlue_name }}</td>
+                <td>
+                    <ul class="list-unstyled">
+                        {% for args in module.argument_set.all %}
+                            <li>
+                                <div class="col-sm-10">
+                                    {{ args.arg_text }}
+                                </div>
+                                <div class="col-sm-2">
+                                    <a href="{% url 'del_args' args_id=args.id %}">删除</a>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </td>
+            </tr>
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+http://down.51cto.com   =>  Django By Example
+http://www.conyli.cc/archives/category/program/django
 
 
 
