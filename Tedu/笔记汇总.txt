@@ -8397,6 +8397,19 @@ Jinja2过滤器
  -变量可以通过过滤器修改，类似管道(|)作用差不多，也可以用圆括号传递可选参数，多个过滤器可以链式调用
  -查看文档http://docs.jinkan.org/docs/jinja2/templates.html#builtin-filters
  
+vault加密解密
+创建新加密文件：ansible-vault create file
+加密原有文件：ansible-vault encrypt file
+编辑加密文件：ansible-vault edit file
+加密文件密码修改：ansible-vault rekey file
+解密加密文件：ansible-vault decrypt file
+查看加密文件：ansible-vault view file
+运行加密的playbook：ansible-playbook file --ask-vault-pass  #交互式的
+					ansible-playbook file --vault-password-file	密码文件  #非交互的
+
+ansible-playbook file -S -k -K --vault-password-file 加密的密码文件  #安全ansible使用
+hosts文件不可出现明文密码
+
 playbook
 是什么
  -用于配置，部署和管理托管主机剧本，通过playbook的详细描述，执行其中一系列任务，使远端素质达到预期状态
